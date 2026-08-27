@@ -105,6 +105,19 @@ const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
           Effect.catchTag("SomtodayError", (error) =>
             Effect.succeed({ ok: false, message: error.detail }))
         )
+      }))
+    .handle("test", () =>
+      Effect.gen(function* () {
+        const somtoday = yield* Somtoday
+        return yield* somtoday.sync.pipe(
+          Effect.map((result) => ({
+            ok: true,
+            message:
+              `${result.lessons} lessen en ${result.homework} huiswerkitems opgehaald`
+          })),
+          Effect.catchTag("SomtodayError", (error) =>
+            Effect.succeed({ ok: false, message: `${error.reason}: ${error.detail}` }))
+        )
       })))
 
 const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>

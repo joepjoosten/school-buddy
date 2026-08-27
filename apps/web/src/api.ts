@@ -71,6 +71,8 @@ export const connectStart = (uuid: string) =>
 export const connectFinish = (redirectUrl: string) =>
   request(ActionResult, "/api/somtoday/connect/finish", post({ redirectUrl }))
 
+export const testSomtoday = request(ActionResult, "/api/somtoday/test", { method: "POST" })
+
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>
   Effect.runPromise(effect)

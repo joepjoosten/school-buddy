@@ -2,7 +2,14 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { School, Settings } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
-import { connectFinish, connectStart, runEffect, saveSettings, searchSchools } from "./api.ts"
+import {
+  connectFinish,
+  connectStart,
+  runEffect,
+  saveSettings,
+  searchSchools,
+  testSomtoday
+} from "./api.ts"
 import { healthAtom, settingsAtom } from "./atoms.ts"
 
 /** Poll health while a connect attempt is in flight, so the page flips to
@@ -25,6 +32,21 @@ const SomtodaySection = () => {
   const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(null)
   const [redirectUrl, setRedirectUrl] = useState("")
   const [message, setMessage] = useState<string | null>(null)
+
+  const [testing, setTesting] = useState(false)
+  const runTest = async () => {
+    setTesting(true)
+    setMessage(null)
+    try {
+      const result = await runEffect(testSomtoday)
+      setMessage(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`)
+      refreshHealth()
+    } catch (e) {
+      setMessage(`❌ ${String(e)}`)
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const connected = health !== null && health.somtoday === "authenticated"
   useHealthPolling(authorizeUrl !== null && !connected, refreshHealth)
@@ -68,7 +90,10 @@ const SomtodaySection = () => {
       {health && health.somtoday === "authenticated" ? (
         <p>
           ✅ Gekoppeld.
-          {health.lastSync !== null && <> Laatste sync: {health.lastSync}</>}
+          {health.lastSync !== null && <> Laatste sync: {health.lastSync}</>}{" "}
+          <button type="button" onClick={runTest} disabled={testing}>
+            {testing ? "Bezig met ophalen…" : "Test ophalen"}
+          </button>
         </p>
       ) : (
         <p>⚠️ Nog niet gekoppeld. Zoek je school en log in met het Microsoft-schoolaccount.</p>

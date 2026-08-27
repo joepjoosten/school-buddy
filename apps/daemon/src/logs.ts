@@ -21,7 +21,7 @@ const lineTimestamp = (line: string, now: Date): number | null => {
   return d.getTime()
 }
 
-export const showLogs = async (minutes: number): Promise<void> => {
+export const showLogs = async (minutes: number, tail: boolean): Promise<void> => {
   const file = Bun.file(LOG_FILE)
   if (!(await file.exists())) {
     console.error(`Geen logbestand gevonden (${LOG_FILE}). Draait de daemon via launchd?`)
@@ -48,7 +48,24 @@ export const showLogs = async (minutes: number): Promise<void> => {
     }
   }
 
-  if (shown === 0) {
+  if (shown === 0 && !tail) {
     console.log(`Geen logregels in de laatste ${minutes} minuten (${LOG_FILE}).`)
+  }
+
+  if (!tail) return
+
+  // follow mode: keep printing whatever gets appended (Ctrl-C to stop)
+  console.log(`--- volgen van ${LOG_FILE} (Ctrl-C om te stoppen) ---`)
+  let offset = size
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    const current = Bun.file(LOG_FILE)
+    if (!(await current.exists())) continue
+    const currentSize = current.size
+    if (currentSize < offset) offset = 0 // log rotated/truncated
+    if (currentSize > offset) {
+      process.stdout.write(await current.slice(offset, currentSize).text())
+      offset = currentSize
+    }
   }
 }

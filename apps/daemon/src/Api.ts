@@ -82,6 +82,9 @@ const somtoday = HttpApiGroup.make("somtoday").add(
   HttpApiEndpoint.post("connectFinish", "/api/somtoday/connect/finish", {
     payload: Schema.Struct({ redirectUrl: Schema.String }),
     success: ActionResult
+  }),
+  HttpApiEndpoint.post("test", "/api/somtoday/test", {
+    success: ActionResult
   })
 )
 

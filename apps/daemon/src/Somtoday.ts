@@ -108,10 +108,15 @@ export const persistTokens = (tokens: TokenResponse): Effect.Effect<void> =>
 
 // --- Service ---------------------------------------------------------------
 
+export interface SyncResult {
+  readonly lessons: number
+  readonly homework: number
+}
+
 export interface SomtodayShape {
   readonly isAuthenticated: Effect.Effect<boolean>
   /** Sync roster + homework into the store for a rolling window. */
-  readonly sync: Effect.Effect<void, SomtodayError>
+  readonly sync: Effect.Effect<SyncResult, SomtodayError>
   /** Search schools in Somtoday's public organisation list. */
   readonly searchSchools: (query: string) => Effect.Effect<Array<School>, SomtodayError>
   /** Begin the browser connect flow: returns the authorize URL to open. */
@@ -128,45 +133,71 @@ interface RestPage {
 
 const asString = (v: unknown): string | null => (typeof v === "string" ? v : null)
 
+const asObject = (v: unknown): Record<string, unknown> | null =>
+  v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null
+
+const linkId = (item: Record<string, unknown>): string => {
+  const links = item["links"]
+  if (!Array.isArray(links)) return ""
+  const id = asObject(links[0])?.["id"]
+  return id === undefined || id === null ? "" : String(id)
+}
+
+/**
+ * Field shapes verified against the live API (2026-08): `additionalObjects.vak`
+ * is often null; `titel` is "<locatie> - <omschrijving> - <docenten>".
+ */
 const mapAfspraak = (item: Record<string, unknown>): Lesson | null => {
-  const additional = (item["additionalObjects"] ?? {}) as Record<string, unknown>
+  const additional = asObject(item["additionalObjects"]) ?? {}
   const start = asString(item["beginDatumTijd"])
   const end = asString(item["eindDatumTijd"])
-  const id = item["links"] !== undefined
-    ? String(((item["links"] as Array<Record<string, unknown>>)[0] ?? {})["id"] ?? "")
-    : ""
+  const id = linkId(item)
   if (start === null || end === null || id === "") return null
-  const subject = asString(additional["vak"] !== undefined
-    ? ((additional["vak"] as Record<string, unknown>)["afkorting"] ?? null)
-    : null) ?? asString(item["titel"]) ?? "les"
+  const vak = asObject(additional["vak"])
+  const titel = asString(item["titel"]) ?? "les"
+  const parts = titel.split(" - ")
+  const middle = parts.length >= 3 ? parts.slice(1, -1).join(" - ") : titel
   return {
     id,
-    subject,
-    title: asString(item["titel"]) ?? subject,
+    subject: asString(vak?.["afkorting"]) ?? middle,
+    title: asString(vak?.["naam"]) ?? middle,
     location: asString(item["locatie"]),
-    teacher: asString(additional["docentAfkortingen"]),
+    teacher: parts.length >= 3 ? (parts[parts.length - 1] ?? null) : null,
     start,
     end,
     cancelled: false
   }
 }
 
+/** "vw4.biol1" → "biol": the lesgroep name carries the subject code. */
+const subjectFromLesgroep = (lesgroep: unknown): string | null => {
+  const naam = asString(asObject(lesgroep)?.["naam"])
+  if (naam === null) return null
+  const last = naam.split(".").at(-1) ?? naam
+  const stripped = last.replace(/\d+$/, "")
+  return stripped.length > 0 ? stripped : naam
+}
+
 const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
-  const id = item["links"] !== undefined
-    ? String(((item["links"] as Array<Record<string, unknown>>)[0] ?? {})["id"] ?? "")
-    : ""
-  const studiewijzerItem = (item["studiewijzerItem"] ?? {}) as Record<string, unknown>
+  const id = linkId(item)
+  const studiewijzerItem = asObject(item["studiewijzerItem"]) ?? {}
   const dueRaw = asString(item["datumTijd"])
   if (id === "" || dueRaw === null) return null
-  const description = (asString(studiewijzerItem["omschrijving"]) ?? "")
+  const onderwerp = asString(studiewijzerItem["onderwerp"])
+  const omschrijving = (asString(studiewijzerItem["omschrijving"]) ?? "")
     .replace(/<[^>]+>/g, "")
     .trim()
-  if (description === "") return null
+  const description = omschrijving !== "" ? omschrijving : onderwerp
+  if (description === null || description === "") return null
+  const huiswerkType = asString(studiewijzerItem["huiswerkType"])
+  const prefix = huiswerkType !== null && huiswerkType.includes("TOETS") ? "[TOETS] " : ""
   return {
     id: `somtoday-${id}`,
-    subject: asString(studiewijzerItem["onderwerp"]) ?? "onbekend",
+    subject: subjectFromLesgroep(item["lesgroep"]) ?? onderwerp ?? "onbekend",
     dueDate: dueRaw.slice(0, 10),
-    description,
+    description: `${prefix}${description}`,
     source: "somtoday",
     lessonId: null,
     done: false,
@@ -227,7 +258,7 @@ const makeSomtoday = Effect.gen(function* () {
           : new SomtodayError({ reason: "network", detail: String(e) })
     })
 
-  const sync: Effect.Effect<void, SomtodayError> = Effect.gen(function* () {
+  const sync: Effect.Effect<SyncResult, SomtodayError> = Effect.gen(function* () {
     const auth = yield* refreshAccessToken
     // rolling window: last week's Monday until 3 weeks ahead
     const from = toDateOnly(addDays(mondayOf(new Date()), -7))
@@ -252,6 +283,7 @@ const makeSomtoday = Effect.gen(function* () {
     yield* store.upsertSomtodayHomework(items)
 
     yield* store.setMeta("somtoday.lastSync", new Date().toISOString())
+    return { lessons: lessons.length, homework: items.length }
   })
 
   // PKCE verifier for an in-flight web connect attempt (daemon-lifetime state)

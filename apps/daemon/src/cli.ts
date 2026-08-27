@@ -34,8 +34,13 @@ const logs = Command.make("logs", {
     Flag.withAlias("m"),
     Flag.withDescription("Hoeveel minuten terugkijken (standaard 5)"),
     Flag.withDefault(5)
+  ),
+  tail: Flag.boolean("tail").pipe(
+    Flag.withAlias("f"),
+    Flag.withDescription("Blijf nieuwe logregels volgen (zoals tail -f)"),
+    Flag.withDefault(false)
   )
-}, ({ minutes }) => Effect.promise(() => showLogs(minutes))).pipe(
+}, ({ minutes, tail }) => Effect.promise(() => showLogs(minutes, tail))).pipe(
   Command.withDescription("Toon recente daemon-logs (standaard: laatste 5 minuten)")
 )
 

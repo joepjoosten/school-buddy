@@ -306,7 +306,11 @@ No Apple Developer account needed anywhere.
 - [x] Week web UI (React + Effect, ←/→ weeks, homework add/toggle, chat panel)
 - [ ] Chat agent — currently a stub; wire OpenAI (Codex subscription / API key
       fallback) with read-only roster/homework tools
-- [ ] Run the real Somtoday login + verify field mapping of afspraken/huiswerk
-      responses (mapping is defensive but written from docs, not live data)
+- [x] Real Somtoday login verified end-to-end (2026-08-27): sync fetches lessons +
+      homework. Live-data fixes: `additionalObjects.vak` can be null; `titel` is
+      "locatie - omschrijving - docenten"; homework subject comes from
+      `lesgroep.naam` ("vw4.biol1" → "biol"); `huiswerkType` TOETS → "[TOETS]" prefix.
+      Open gap: `studiewijzeritemweektoekenningen` (week-based homework without a
+      date) is not yet imported.
 - [ ] Tests (bun test): time helpers, store, prompt planning
 - [ ] install.sh + deployment test on second Mac

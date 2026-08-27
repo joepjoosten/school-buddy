@@ -17,7 +17,7 @@ const syncJob = Effect.gen(function* () {
   const somtoday = yield* Somtoday
   const store = yield* Store
   yield* somtoday.sync.pipe(
-    Effect.tap(() => Effect.log("somtoday sync ok")),
+    Effect.tap((r) => Effect.log(`somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk`)),
     Effect.catchTag("SomtodayError", (error) =>
       Effect.gen(function* () {
         yield* Effect.logWarning(`somtoday sync failed: ${error.reason} ${error.detail}`)
