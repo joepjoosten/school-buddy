@@ -25,8 +25,10 @@ jobs:
       - name: Compile daemon binaries
         working-directory: apps/daemon
         run: |
-          bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/school-buddy-arm64
-          bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/school-buddy-x64
+          DEFINE="process.env.SCHOOL_BUDDY_VERSION=\"$GITHUB_REF_NAME\""
+          bun build src/cli.ts --compile --target=bun-darwin-arm64 --define "$DEFINE" --outfile dist/school-buddy-arm64
+          bun build src/cli.ts --compile --target=bun-darwin-x64 --define "$DEFINE" --outfile dist/school-buddy-x64
+          [ "$(dist/school-buddy-arm64 version)" = "$GITHUB_REF_NAME" ]
 
       - name: Assemble tarballs
         run: |

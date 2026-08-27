@@ -4,6 +4,8 @@ import * as Schedule from "effect/Schedule"
 import { planHomeworkPrompts } from "./Buddy.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
+import { fetchLatestVersion } from "./update.ts"
+import { VERSION } from "./version.ts"
 
 /**
  * Periodic jobs, kept alive for the lifetime of the daemon. Bun keeps running
@@ -40,14 +42,34 @@ const promptJob = planHomeworkPrompts.pipe(
   )
 )
 
+const updateCheckJob = Effect.gen(function* () {
+  const store = yield* Store
+  const latest = yield* Effect.promise(() => fetchLatestVersion())
+  if (latest === null) return
+  yield* store.setMeta("update.latest", latest)
+  if (latest === VERSION || VERSION === "dev") return
+  // notify once per new version
+  const prompted = yield* store.getMeta("update.prompted")
+  if (prompted === latest) return
+  yield* store.createPrompt({
+    kind: "info",
+    text:
+      `Er is een nieuwe versie van School Buddy (${latest}). ` +
+      `Installeer hem via het 🎒-menu → "Update installeren".`
+  })
+  yield* store.setMeta("update.prompted", latest)
+})
+
 export const SchedulerLive = Layer.effectDiscard(
   Effect.forkScoped(
     Effect.all([
       syncJob.pipe(Effect.schedule(Schedule.spaced("30 minutes"))),
       promptJob.pipe(Effect.schedule(Schedule.spaced("5 minutes"))),
-      // run both once at startup, before the first spaced tick
+      updateCheckJob.pipe(Effect.schedule(Schedule.spaced("1 day"))),
+      // run everything once at startup, before the first spaced tick
       syncJob,
-      promptJob
+      promptJob,
+      updateCheckJob
     ], { concurrency: "unbounded", discard: true })
   )
 )

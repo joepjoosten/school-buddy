@@ -103,10 +103,27 @@ end)
 
 local menubar = hs.menubar.new()
 
+local function runUpdate()
+  local bin = os.getenv("HOME") .. "/.school-buddy/app/school-buddy"
+  hs.alert.show("Update wordt gecontroleerd…")
+  local task = hs.task.new(bin, function(exitCode, stdOut, stdErr)
+    if exitCode == 0 then
+      hs.alert.show("✅ School Buddy is bijgewerkt")
+    else
+      hs.alert.show("Update mislukt — zie ~/.school-buddy/daemon.log")
+      print("school-buddy update failed:", stdOut, stdErr)
+    end
+  end, { "update" })
+  if not (task and task:start()) then
+    hs.alert.show("Geen release-installatie gevonden (development?)")
+  end
+end
+
 local function menuItems()
   return {
     { title = "📅 Rooster & huiswerk", fn = function() hs.urlevent.openURL(DAEMON) end },
     { title = "❓ Vragen checken", fn = checkPending },
+    { title = "⬆️ Update installeren", fn = runUpdate },
     { title = "-" },
     {
       title = "Status",
@@ -117,8 +134,12 @@ local function menuItems()
             return
           end
           local health = hs.json.decode(body)
-          local msg = "Somtoday: " .. health.somtoday
+          local msg = "Versie: " .. health.version .. "\nSomtoday: " .. health.somtoday
           if health.lastSync then msg = msg .. "\nLaatste sync: " .. health.lastSync end
+          if health.latestVersion and health.latestVersion ~= health.version
+            and health.version ~= "dev" then
+            msg = msg .. "\n⬆️ Update beschikbaar: " .. health.latestVersion
+          end
           hs.alert.show(msg)
         end)
       end

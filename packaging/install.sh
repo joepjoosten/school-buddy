@@ -12,6 +12,8 @@ PLIST_DEST="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
 echo "==> School Buddy installeren naar $DEST"
 mkdir -p "$DEST" "$HOME/.school-buddy"
 rm -rf "$DEST/web" "$DEST/hammerspoon"
+# unlink first: a running daemon keeps its (unlinked) inode instead of crashing
+rm -f "$DEST/school-buddy"
 cp "$SRC/school-buddy" "$DEST/school-buddy"
 cp -R "$SRC/web" "$DEST/web"
 cp -R "$SRC/hammerspoon" "$DEST/hammerspoon"

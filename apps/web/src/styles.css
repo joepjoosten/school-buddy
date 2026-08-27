@@ -16,6 +16,7 @@ button {
 button:hover { background: #e8edf7; }
 .weeklabel { font-weight: 600; color: #4a5670; }
 .warn { color: #b45309; font-weight: 600; }
+.version { color: #a5aec3; font-size: 0.75rem; margin-left: auto; }
 .error { color: #b91c1c; }
 
 main { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; margin-top: 1rem; }

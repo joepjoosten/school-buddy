@@ -118,6 +118,10 @@ export const Health = Schema.Struct({
   status: Schema.Literals(["ok"]),
   somtoday: Schema.Literals(["authenticated", "unauthenticated"]),
   /** ISO datetime of last successful roster sync, null if never */
-  lastSync: Schema.NullOr(Schema.String)
+  lastSync: Schema.NullOr(Schema.String),
+  /** running daemon version ("dev" outside releases) */
+  version: Schema.String,
+  /** newest release seen on GitHub, null if not checked yet */
+  latestVersion: Schema.NullOr(Schema.String)
 })
 export type Health = typeof Health.Type

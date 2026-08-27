@@ -35,6 +35,16 @@ tar -xzf school-buddy-*.tar.gz && cd school-buddy-*/
 Een release maken: push een tag (`git tag v0.1.0 && git push --tags`) — de
 `Release`-workflow compileert de binaries en publiceert de tarballs.
 
+### Updaten
+
+- Handmatig: `~/.school-buddy/app/school-buddy update` (of `update --check`),
+  of via het 🎒-menu → "Update installeren".
+- Automatisch: de daemon checkt dagelijks op nieuwe releases en meldt het met
+  een popup + in de weekpagina; de update zelf start je via het menu.
+- **Privé repo?** Zet dan een fine-grained read-only token op de laptop:
+  `security add-generic-password -s school-buddy -a github.token -w <token>`
+  (zonder token werkt updaten alleen bij een publieke repo).
+
 ### Vanuit de repo (development)
 
 ```sh

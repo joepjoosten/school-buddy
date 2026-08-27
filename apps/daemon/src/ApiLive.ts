@@ -7,6 +7,7 @@ import { Chat } from "./Chat.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { toDateOnly } from "./time.ts"
+import { VERSION } from "./version.ts"
 
 const RoosterLive = HttpApiBuilder.group(Api, "rooster", (handlers) =>
   handlers.handle("week", ({ query }) =>
@@ -84,10 +85,13 @@ const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>
       const somtoday = yield* Somtoday
       const authenticated = yield* somtoday.isAuthenticated
       const lastSync = yield* store.getMeta("somtoday.lastSync")
+      const latestVersion = yield* store.getMeta("update.latest")
       return {
         status: "ok" as const,
         somtoday: authenticated ? ("authenticated" as const) : ("unauthenticated" as const),
-        lastSync
+        lastSync,
+        version: VERSION,
+        latestVersion
       }
     })))
 
