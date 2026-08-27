@@ -12,7 +12,7 @@ const SomtodaySection = () => {
 
   const [query, setQuery] = useState("")
   const [schools, setSchools] = useState<ReadonlyArray<School>>([])
-  const [started, setStarted] = useState(false)
+  const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(null)
   const [redirectUrl, setRedirectUrl] = useState("")
   const [message, setMessage] = useState<string | null>(null)
 
@@ -23,10 +23,13 @@ const SomtodaySection = () => {
   }
 
   const start = async (school: School) => {
-    const { authorizeUrl } = await runEffect(connectStart(school.uuid))
-    setStarted(true)
+    // open the tab synchronously, inside the click gesture — a window.open
+    // after an await gets popup-blocked (blank page) in Safari and others
+    const win = window.open("about:blank", "_blank")
+    const result = await runEffect(connectStart(school.uuid))
+    setAuthorizeUrl(result.authorizeUrl)
     setMessage(null)
-    window.open(authorizeUrl, "_blank")
+    if (win !== null) win.location.href = result.authorizeUrl
   }
 
   const finish = async (e: React.FormEvent) => {
@@ -34,7 +37,7 @@ const SomtodaySection = () => {
     const result = await runEffect(connectFinish(redirectUrl))
     setMessage(result.ok ? "✅ Somtoday gekoppeld!" : `❌ ${result.message}`)
     if (result.ok) {
-      setStarted(false)
+      setAuthorizeUrl(null)
       setRedirectUrl("")
       refreshHealth()
     }
@@ -70,12 +73,17 @@ const SomtodaySection = () => {
           ))}
         </ul>
       )}
-      {started && (
+      {authorizeUrl !== null && (
         <form onSubmit={finish} className="finish">
           <p>
-            De inlogpagina is geopend in een nieuw tabblad. Na het inloggen eindigt de
-            browser bij een niet-werkende <code>somtoday://</code>-link — kopieer die
-            volledige URL en plak hem hieronder.
+            De inlogpagina is geopend in een nieuw tabblad — niet gebeurd (popup
+            geblokkeerd)?{" "}
+            <a href={authorizeUrl} target="_blank" rel="noreferrer">
+              Open de inlogpagina hier
+            </a>
+            . Na het inloggen eindigt de browser bij een niet-werkende{" "}
+            <code>somtoday://</code>-link — kopieer die volledige URL en plak hem
+            hieronder.
           </p>
           <div className="row">
             <input
