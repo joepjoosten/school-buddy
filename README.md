@@ -47,9 +47,9 @@ en versie-informatie.
   of via het 🎒-menu → "Update installeren".
 - Automatisch: de daemon checkt dagelijks op nieuwe releases en meldt het met
   een popup + in de weekpagina; de update zelf start je via het menu.
-- **Privé repo?** Zet dan een fine-grained read-only token op de laptop:
-  `security add-generic-password -s school-buddy -a github.token -w <token>`
-  (zonder token werkt updaten alleen bij een publieke repo).
+- De repo is publiek, dus updaten werkt zonder token. (Zou hij ooit weer privé
+  worden: zet dan een fine-grained read-only token op de laptop met
+  `security add-generic-password -s school-buddy -a github.token -w <token>`.)
 
 ### Vanuit de repo (development)
 
