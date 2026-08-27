@@ -1,4 +1,4 @@
-import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
+import { BunHttpServer } from "@effect/platform-bun"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -10,7 +10,8 @@ import { SchedulerLive } from "./Scheduler.ts"
 import { SomtodayLive } from "./Somtoday.ts"
 import { StoreLive } from "./Store.ts"
 
-export const startDaemon = (): void => {
+/** The daemon as an Effect: launches the server + scheduler and never returns. */
+export const daemonEffect = (): Effect.Effect<never> => {
   const port = Number(process.env["SCHOOL_BUDDY_PORT"] ?? 4823)
   const dataDir = `${process.env["HOME"]}/.school-buddy`
   // In a compiled binary the web assets are next to the executable (set by the
@@ -42,9 +43,8 @@ export const startDaemon = (): void => {
     Layer.merge(SchedulerLive.pipe(Layer.provide(AppServices)))
   )
 
-  BunRuntime.runMain(
-    Layer.launch(MainLive).pipe(
-      Effect.tap(() => Effect.log(`school-buddy daemon on http://127.0.0.1:${port}`))
-    )
+  return Layer.launch(MainLive).pipe(
+    Effect.tap(() => Effect.log(`school-buddy daemon on http://127.0.0.1:${port}`)),
+    Effect.orDie
   )
 }
