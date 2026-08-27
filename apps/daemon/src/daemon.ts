@@ -3,7 +3,8 @@ import { SqliteClient } from "@effect/sql-sqlite-bun"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpRouter, HttpStaticServer } from "effect/unstable/http"
-import { mkdirSync } from "node:fs"
+import { existsSync, mkdirSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { ApiLive } from "./ApiLive.ts"
 import { ChatStubLive } from "./Chat.ts"
 import { SchedulerLive } from "./Scheduler.ts"
@@ -14,10 +15,17 @@ import { StoreLive } from "./Store.ts"
 export const daemonEffect = (): Effect.Effect<never> => {
   const port = Number(process.env["SCHOOL_BUDDY_PORT"] ?? 4823)
   const dataDir = `${process.env["HOME"]}/.school-buddy`
-  // In a compiled binary the web assets are next to the executable (set by the
-  // release installer); in dev they live in the workspace.
+  // Web asset resolution: explicit env var → `web/` next to the executable
+  // (release install layout) → the dev workspace path. The execPath fallback
+  // means a release binary also works when started by hand without env vars.
+  const besideExecutable = join(dirname(process.execPath), "web")
   const webDist = process.env["SCHOOL_BUDDY_WEB_DIR"] ??
-    new URL("../../web/dist", import.meta.url).pathname
+    (existsSync(join(besideExecutable, "index.html"))
+      ? besideExecutable
+      : new URL("../../web/dist", import.meta.url).pathname)
+  if (!existsSync(join(webDist, "index.html"))) {
+    console.warn(`⚠️  Geen web-app gevonden in ${webDist} — de rooster-pagina geeft 404.`)
+  }
 
   // data dir must exist before SQLite opens its file
   mkdirSync(dataDir, { recursive: true })

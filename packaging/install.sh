@@ -51,7 +51,23 @@ cat > "$PLIST_DEST" <<PLIST
 </plist>
 PLIST
 launchctl bootout "gui/$UID/$PLIST_LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$PLIST_DEST"
+sleep 1
+# bootstrap can transiently fail right after a bootout — retry a few times
+for attempt in 1 2 3; do
+  if launchctl bootstrap "gui/$UID" "$PLIST_DEST" 2>/dev/null; then break; fi
+  [ "$attempt" = 3 ] && { echo "❌ launchd bootstrap mislukt"; exit 1; }
+  sleep 2
+done
+# verify the daemon actually came up
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -s -o /dev/null "http://127.0.0.1:4823/api/health"; then
+    echo "✅ daemon draait"
+    break
+  fi
+  sleep 1
+done
+curl -s -o /dev/null "http://127.0.0.1:4823/api/health" \
+  || echo "⚠️  daemon reageert nog niet — check: $DEST/school-buddy logs"
 
 echo "==> somtoday:// callback-app"
 # Built on this machine (osacompile) so Gatekeeper stays out of the way; it
