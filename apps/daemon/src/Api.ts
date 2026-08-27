@@ -1,11 +1,15 @@
 import {
+  ActionResult,
   ChatReply,
   ChatRequest,
+  ConnectStartResult,
   Health,
   HomeworkInput,
   HomeworkItem,
   Prompt,
   PromptAnswer,
+  School,
+  Settings,
   Signal,
   WeekData
 } from "@school-buddy/shared"
@@ -56,6 +60,31 @@ const chat = HttpApiGroup.make("chat").add(
   })
 )
 
+const settings = HttpApiGroup.make("settings").add(
+  HttpApiEndpoint.get("get", "/api/settings", {
+    success: Settings
+  }),
+  HttpApiEndpoint.put("update", "/api/settings", {
+    payload: Settings,
+    success: Settings
+  })
+)
+
+const somtoday = HttpApiGroup.make("somtoday").add(
+  HttpApiEndpoint.get("schools", "/api/somtoday/schools", {
+    query: { q: Schema.String },
+    success: Schema.Array(School)
+  }),
+  HttpApiEndpoint.post("connectStart", "/api/somtoday/connect/start", {
+    payload: Schema.Struct({ uuid: Schema.String }),
+    success: ConnectStartResult
+  }),
+  HttpApiEndpoint.post("connectFinish", "/api/somtoday/connect/finish", {
+    payload: Schema.Struct({ redirectUrl: Schema.String }),
+    success: ActionResult
+  })
+)
+
 const health = HttpApiGroup.make("health").add(
   HttpApiEndpoint.get("get", "/api/health", {
     success: Health
@@ -68,5 +97,7 @@ export const Api = HttpApi.make("school-buddy").add(
   prompts,
   signals,
   chat,
+  settings,
+  somtoday,
   health
 )

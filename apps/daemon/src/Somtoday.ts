@@ -1,4 +1,4 @@
-import type { HomeworkItem, Lesson } from "@school-buddy/shared"
+import type { HomeworkItem, Lesson, School } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -8,9 +8,15 @@ import { Store } from "./Store.ts"
 import { addDays, mondayOf, toDateOnly } from "./time.ts"
 
 // OAuth constants for the Somtoday student app (see RESEARCH.md §1).
+// Note: the old UUID-style client ids were revoked in 2025; the native app id works.
 export const AUTH_BASE = "https://inloggen.somtoday.nl"
-export const CLIENT_ID = "D50E0C06-32D1-4B41-A137-A9A850C892C2"
+export const CLIENT_ID = "somtoday-leerling-native"
 export const REDIRECT_URI = "somtoday://nl.topicus.somtoday.leerling/oauth/callback"
+
+// Topicus removed the official public school list (servers.somtoday.nl/organisaties.json);
+// this community mirror is auto-regenerated from the login page and has the same shape.
+export const ORGANISATIES_URL =
+  "https://raw.githubusercontent.com/NONtoday/organisaties.json/refs/heads/main/organisaties.json"
 
 const KC_REFRESH = "somtoday.refresh_token"
 const KC_API_URL = "somtoday.api_url"
@@ -106,6 +112,12 @@ export interface SomtodayShape {
   readonly isAuthenticated: Effect.Effect<boolean>
   /** Sync roster + homework into the store for a rolling window. */
   readonly sync: Effect.Effect<void, SomtodayError>
+  /** Search schools in Somtoday's public organisation list. */
+  readonly searchSchools: (query: string) => Effect.Effect<Array<School>, SomtodayError>
+  /** Begin the browser connect flow: returns the authorize URL to open. */
+  readonly connectStart: (schoolUuid: string) => Effect.Effect<string>
+  /** Finish the connect flow with the pasted somtoday:// redirect URL. */
+  readonly connectFinish: (redirectUrl: string) => Effect.Effect<void, SomtodayError>
 }
 
 export class Somtoday extends Context.Service<Somtoday, SomtodayShape>()("app/Somtoday") {}
@@ -242,9 +254,67 @@ const makeSomtoday = Effect.gen(function* () {
     yield* store.setMeta("somtoday.lastSync", new Date().toISOString())
   })
 
+  // PKCE verifier for an in-flight web connect attempt (daemon-lifetime state)
+  let pendingVerifier: string | null = null
+
   const shape: SomtodayShape = {
     isAuthenticated: keychainGet(KC_REFRESH).pipe(Effect.map((t) => t !== null)),
-    sync
+    sync,
+
+    searchSchools: (query) =>
+      Effect.tryPromise({
+        try: async () => {
+          const res = await fetch(ORGANISATIES_URL)
+          if (!res.ok) {
+            throw new SomtodayError({ reason: "http", detail: `organisaties ${res.status}` })
+          }
+          const data = (await res.json()) as Array<{
+            instellingen: Array<{ uuid: string; naam: string; plaats: string }>
+          }>
+          const q = query.toLowerCase()
+          return data
+            .flatMap((d) => d.instellingen)
+            .filter((o) => o.naam.toLowerCase().includes(q))
+            .slice(0, 20)
+            .map((o) => ({ uuid: o.uuid, naam: o.naam, plaats: o.plaats }))
+        },
+        catch: (e) =>
+          e instanceof SomtodayError
+            ? e
+            : new SomtodayError({ reason: "network", detail: String(e) })
+      }),
+
+    connectStart: (schoolUuid) =>
+      Effect.promise(async () => {
+        const { verifier, challenge } = generatePkce()
+        pendingVerifier = verifier
+        return buildAuthorizeUrl({ tenantUuid: schoolUuid, challenge: await challenge })
+      }),
+
+    connectFinish: (redirectUrl) =>
+      Effect.gen(function* () {
+        const verifier = pendingVerifier
+        if (verifier === null) {
+          return yield* new SomtodayError({
+            reason: "unauthenticated",
+            detail: "geen lopende koppeling — begin opnieuw bij stap 1"
+          })
+        }
+        const code = yield* Effect.try({
+          try: () => new URL(redirectUrl.trim()).searchParams.get("code"),
+          catch: () =>
+            new SomtodayError({ reason: "unauthenticated", detail: "ongeldige URL" })
+        })
+        if (code === null) {
+          return yield* new SomtodayError({
+            reason: "unauthenticated",
+            detail: "geen ?code= in de geplakte URL — kopieer de volledige somtoday://-URL"
+          })
+        }
+        const tokens = yield* exchangeCode({ code, verifier })
+        yield* persistTokens(tokens)
+        pendingVerifier = null
+      })
   }
   return shape
 })

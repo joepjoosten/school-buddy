@@ -10,7 +10,13 @@
  * 4. Exchanges the code and stores the rotating refresh token in the Keychain.
  */
 import * as Effect from "effect/Effect"
-import { buildAuthorizeUrl, exchangeCode, generatePkce, persistTokens } from "./Somtoday.ts"
+import {
+  buildAuthorizeUrl,
+  exchangeCode,
+  generatePkce,
+  ORGANISATIES_URL,
+  persistTokens
+} from "./Somtoday.ts"
 
 export const runSetup = async (schoolQuery: string | undefined): Promise<void> => {
   if (!schoolQuery) {
@@ -19,7 +25,7 @@ export const runSetup = async (schoolQuery: string | undefined): Promise<void> =
   }
 
   console.log(`Looking up "${schoolQuery}" in Somtoday's organisation list...`)
-  const res = await fetch("https://servers.somtoday.nl/organisaties.json")
+  const res = await fetch(ORGANISATIES_URL)
   if (!res.ok) {
     console.error(`Could not fetch organisation list (${res.status})`)
     process.exit(1)

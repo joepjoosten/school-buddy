@@ -32,8 +32,14 @@ Date: 2026-08-27
 
 - Authorize: `https://inloggen.somtoday.nl/oauth2/authorize`, token: `https://inloggen.somtoday.nl/oauth2/token`.
 - OAuth2 authorization-code flow with PKCE (S256). School identified by tenant/school UUID.
-- Known client IDs: `somtoday-leerling-native` (student app), `D50E0C06-32D1-4B41-A137-A9A850C892C2` (SSO student client), `CD4EBCF7-2809-4AB3-8D71-7D9CE518AF1B` (parent app).
-- Redirect URIs: `somtoday://nl.topicus.somtoday.leerling/oauth/callback` / `somtodayouder://oauth/callback`.
+- Client IDs (verified 2026-08: **the old UUID-style ids were revoked**): use
+  `somtoday-leerling-native` (redirect `somtoday://nl.topicus.somtoday.leerling/oauth/callback`)
+  or `somtoday-leerling-web` (redirect `https://leerling.somtoday.nl/oauth/callback`).
+- School list (verified 2026-08): `servers.somtoday.nl/organisaties.json` was **removed**
+  by Topicus ([docs issue #42](https://github.com/elisaado/somtoday-api-docs/issues/42)).
+  Use the auto-regenerated community mirror with the identical shape:
+  `https://raw.githubusercontent.com/NONtoday/organisaties.json/refs/heads/main/organisaties.json`
+  (fallback: the undocumented autocomplete on inloggen.somtoday.nl, needs session cookies).
 - Access token TTL ≈ 1 hour. **Refresh tokens rotate**: every refresh returns a new
   refresh token and invalidates the old one → must persist the newest one every cycle.
   Stays valid effectively indefinitely with regular use, but school/IdP can force re-auth.

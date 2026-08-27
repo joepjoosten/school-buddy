@@ -112,6 +112,43 @@ export const ChatReply = Schema.Struct({
 })
 export type ChatReply = typeof ChatReply.Type
 
+// --- Settings -------------------------------------------------------------
+
+export const Settings = Schema.Struct({
+  /** whether the buddy asks homework questions at all */
+  promptsEnabled: Schema.Boolean,
+  /** no questions between quietStart and quietEnd (may wrap midnight), "HH:MM" */
+  quietStart: Schema.String,
+  quietEnd: Schema.String
+})
+export type Settings = typeof Settings.Type
+
+export const defaultSettings: Settings = {
+  promptsEnabled: true,
+  quietStart: "21:00",
+  quietEnd: "07:30"
+}
+
+// --- Somtoday connect flow (web-based setup) -------------------------------
+
+export const School = Schema.Struct({
+  uuid: Schema.String,
+  naam: Schema.String,
+  plaats: Schema.String
+})
+export type School = typeof School.Type
+
+export const ConnectStartResult = Schema.Struct({
+  authorizeUrl: Schema.String
+})
+export type ConnectStartResult = typeof ConnectStartResult.Type
+
+export const ActionResult = Schema.Struct({
+  ok: Schema.Boolean,
+  message: Schema.NullOr(Schema.String)
+})
+export type ActionResult = typeof ActionResult.Type
+
 // --- Health ---------------------------------------------------------------
 
 export const Health = Schema.Struct({

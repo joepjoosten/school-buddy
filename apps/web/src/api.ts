@@ -1,8 +1,12 @@
 import {
+  ActionResult,
   ChatReply,
+  ConnectStartResult,
   Health,
   HomeworkInput,
   HomeworkItem,
+  School,
+  Settings,
   WeekData
 } from "@school-buddy/shared"
 import * as Data from "effect/Data"
@@ -52,6 +56,20 @@ export const setHomeworkDone = (id: string, done: boolean) =>
 
 export const sendChat = (message: string) =>
   request(ChatReply, "/api/chat", post({ message }))
+
+export const fetchSettings = request(Settings, "/api/settings")
+
+export const saveSettings = (settings: typeof Settings.Type) =>
+  request(Settings, "/api/settings", { ...post(settings), method: "PUT" })
+
+export const searchSchools = (q: string) =>
+  request(Schema.Array(School), `/api/somtoday/schools?q=${encodeURIComponent(q)}`)
+
+export const connectStart = (uuid: string) =>
+  request(ConnectStartResult, "/api/somtoday/connect/start", post({ uuid }))
+
+export const connectFinish = (redirectUrl: string) =>
+  request(ActionResult, "/api/somtoday/connect/finish", post({ redirectUrl }))
 
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>

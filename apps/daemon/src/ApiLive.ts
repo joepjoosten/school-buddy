@@ -78,6 +78,35 @@ const ChatLive = HttpApiBuilder.group(Api, "chat", (handlers) =>
       return { reply }
     })))
 
+const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
+  handlers
+    .handle("get", () => Store.pipe(Effect.flatMap((store) => store.getSettings)))
+    .handle("update", ({ payload }) =>
+      Store.pipe(Effect.flatMap((store) => store.setSettings(payload)))))
+
+const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
+  handlers
+    .handle("schools", ({ query }) =>
+      Effect.gen(function* () {
+        const somtoday = yield* Somtoday
+        return yield* somtoday.searchSchools(query.q).pipe(Effect.orDie)
+      }))
+    .handle("connectStart", ({ payload }) =>
+      Effect.gen(function* () {
+        const somtoday = yield* Somtoday
+        const authorizeUrl = yield* somtoday.connectStart(payload.uuid)
+        return { authorizeUrl }
+      }))
+    .handle("connectFinish", ({ payload }) =>
+      Effect.gen(function* () {
+        const somtoday = yield* Somtoday
+        return yield* somtoday.connectFinish(payload.redirectUrl).pipe(
+          Effect.map(() => ({ ok: true, message: null })),
+          Effect.catchTag("SomtodayError", (error) =>
+            Effect.succeed({ ok: false, message: error.detail }))
+        )
+      })))
+
 const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>
   handlers.handle("get", () =>
     Effect.gen(function* () {
@@ -96,5 +125,14 @@ const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>
     })))
 
 export const ApiLive = HttpApiBuilder.layer(Api).pipe(
-  Layer.provide([RoosterLive, HomeworkLive, PromptsLive, SignalsLive, ChatLive, HealthLive])
+  Layer.provide([
+    RoosterLive,
+    HomeworkLive,
+    PromptsLive,
+    SignalsLive,
+    ChatLive,
+    SettingsLive,
+    SomtodayApiLive,
+    HealthLive
+  ])
 )

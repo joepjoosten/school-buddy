@@ -35,6 +35,12 @@ tar -xzf school-buddy-*.tar.gz && cd school-buddy-*/
 Een release maken: push een tag (`git tag v0.1.0 && git push --tags`) — de
 `Release`-workflow compileert de binaries en publiceert de tarballs.
 
+### Instellingen
+
+`http://127.0.0.1:4823/#instellingen` (of 🎒-menu → "⚙️ Instellingen"):
+Somtoday koppelen vanuit de browser, huiswerkvragen aan/uit + stiltevenster,
+en versie-informatie.
+
 ### Updaten
 
 - Handmatig: `~/.school-buddy/app/school-buddy update` (of `update --check`),

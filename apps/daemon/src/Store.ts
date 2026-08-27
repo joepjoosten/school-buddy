@@ -6,9 +6,13 @@ import type {
   Prompt,
   PromptAnswer,
   PromptKind,
+  Settings,
   Signal,
   WeekData
 } from "@school-buddy/shared"
+import { defaultSettings, Settings as SettingsSchema } from "@school-buddy/shared"
+import * as Schema from "effect/Schema"
+import * as Option from "effect/Option"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -47,6 +51,8 @@ export interface StoreShape {
   readonly recordSignal: (signal: Signal) => Effect.Effect<void>
   readonly getMeta: (key: string) => Effect.Effect<string | null>
   readonly setMeta: (key: string, value: string) => Effect.Effect<void>
+  readonly getSettings: Effect.Effect<Settings>
+  readonly setSettings: (settings: Settings) => Effect.Effect<Settings>
 }
 
 export class Store extends Context.Service<Store, StoreShape>()("app/Store") {}
@@ -322,7 +328,31 @@ const makeStore = Effect.gen(function* () {
 
     setMeta: (key, value) =>
       sql`insert into meta (key, value) values (${key}, ${value})
-        on conflict(key) do update set value = excluded.value`.pipe(Effect.orDie)
+        on conflict(key) do update set value = excluded.value`.pipe(Effect.orDie),
+
+    getSettings: sql<{ readonly value: string }>`
+      select value from meta where key = 'settings'`.pipe(
+      Effect.map((rows) => {
+        const raw = rows[0]?.value
+        if (raw === undefined) return defaultSettings
+        try {
+          return Option.getOrElse(
+            Schema.decodeUnknownOption(SettingsSchema)(JSON.parse(raw)),
+            () => defaultSettings
+          )
+        } catch {
+          return defaultSettings
+        }
+      }),
+      Effect.orDie
+    ),
+
+    setSettings: (settings) =>
+      sql`insert into meta (key, value) values ('settings', ${JSON.stringify(settings)})
+        on conflict(key) do update set value = excluded.value`.pipe(
+        Effect.map(() => settings),
+        Effect.orDie
+      )
   }
 
   return store

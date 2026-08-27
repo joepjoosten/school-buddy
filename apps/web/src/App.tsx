@@ -2,9 +2,20 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { HomeworkItem, Lesson, WeekData } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createHomework, runEffect, sendChat, setHomeworkDone } from "./api.ts"
 import { healthAtom, weekAtom } from "./atoms.ts"
+import { SettingsPage } from "./SettingsPage.tsx"
+
+const useHashRoute = (): string => {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash)
+    window.addEventListener("hashchange", onChange)
+    return () => window.removeEventListener("hashchange", onChange)
+  }, [])
+  return hash
+}
 
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
 
@@ -137,6 +148,7 @@ const ChatPanel = () => {
 }
 
 export const App = () => {
+  const route = useHashRoute()
   const [anchor, setAnchor] = useState<string>(new Date().toISOString().slice(0, 10))
   const weekResult = useAtomValue(weekAtom(anchor))
   const refresh = useAtomRefresh(weekAtom(anchor))
@@ -179,9 +191,17 @@ export const App = () => {
             <span className="warn">⬆️ Update beschikbaar ({health.latestVersion})</span>
           )}
         {health && <span className="version">{health.version}</span>}
+        <a
+          className="settings-link"
+          href={route === "#instellingen" ? "#" : "#instellingen"}
+          title="Instellingen"
+        >
+          {route === "#instellingen" ? "📅 rooster" : "⚙️ instellingen"}
+        </a>
       </header>
       {error !== null && <p className="error">Kan de daemon niet bereiken: {error}</p>}
-      {week && (
+      {route === "#instellingen" && <SettingsPage />}
+      {route !== "#instellingen" && week && (
         <main>
           <div className="week">
             {DAY_NAMES.map((name, i) => (

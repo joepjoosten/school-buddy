@@ -17,6 +17,27 @@ button:hover { background: #e8edf7; }
 .weeklabel { font-weight: 600; color: #4a5670; }
 .warn { color: #b45309; font-weight: 600; }
 .version { color: #a5aec3; font-size: 0.75rem; margin-left: auto; }
+.settings-link { color: #4a5670; text-decoration: none; font-size: 0.9rem; }
+.settings-link:hover { text-decoration: underline; }
+
+.settings-page { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; max-width: 640px; }
+.settings-page section {
+  background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; padding: 1rem;
+}
+.settings-page h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.settings-page .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.settings-page input[type="text"], .settings-page input:not([type]) {
+  flex: 1; border: 1px solid #c6cede; border-radius: 8px; padding: 0.4rem 0.6rem;
+}
+.settings-page input[type="time"] {
+  border: 1px solid #c6cede; border-radius: 8px; padding: 0.3rem 0.4rem;
+}
+.schools { list-style: none; padding: 0; margin: 0.5rem 0; }
+.schools li { margin-bottom: 0.3rem; }
+.schools button { width: 100%; text-align: left; }
+.settings-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.finish { margin-top: 0.6rem; }
+.finish code { background: #eef2ff; padding: 0 0.3rem; border-radius: 4px; }
 .error { color: #b91c1c; }
 
 main { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; margin-top: 1rem; }
