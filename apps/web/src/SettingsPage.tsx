@@ -8,6 +8,8 @@ import {
   runEffect,
   saveSettings,
   searchSchools,
+  sendChat,
+  setOpenAiKey,
   testSomtoday
 } from "./api.ts"
 import { healthAtom, settingsAtom } from "./atoms.ts"
@@ -199,6 +201,94 @@ const PromptsSection = () => {
   )
 }
 
+const AiSection = () => {
+  const healthResult = useAtomValue(healthAtom)
+  const refreshHealth = useAtomRefresh(healthAtom)
+  const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
+
+  const settingsResult = useAtomValue(settingsAtom)
+  const stored = AsyncResult.isSuccess(settingsResult) ? settingsResult.value : null
+  const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
+  const [model, setModel] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState("")
+  const [message, setMessage] = useState<string | null>(null)
+  useEffect(() => {
+    if (stored !== null && chatEnabled === null) {
+      setChatEnabled(stored.chatEnabled)
+      setModel(stored.openAiModel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stored])
+
+  if (stored === null || chatEnabled === null || model === null) {
+    return <section><h2>AI-chat</h2><p>Laden…</p></section>
+  }
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await runEffect(saveSettings({ ...stored, chatEnabled, openAiModel: model }))
+    if (apiKey.trim() !== "") {
+      const result = await runEffect(setOpenAiKey(apiKey.trim()))
+      setMessage(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`)
+      setApiKey("")
+    } else {
+      setMessage("✅ Opgeslagen")
+    }
+    refreshHealth()
+  }
+
+  const testChat = async () => {
+    setMessage("Chat wordt getest…")
+    const { reply } = await runEffect(sendChat("Zeg kort hallo tegen me."))
+    setMessage(`💬 ${reply}`)
+  }
+
+  const statusLabel = health === null
+    ? ""
+    : health.chat === "ready"
+    ? "✅ klaar voor gebruik"
+    : health.chat === "no-key"
+    ? "⚠️ geen API-sleutel ingesteld"
+    : "⏸️ uitgeschakeld"
+
+  return (
+    <section>
+      <h2>AI-chat</h2>
+      <p>Status: {statusLabel}</p>
+      <form onSubmit={save} className="settings-form">
+        <label className="row">
+          <input
+            type="checkbox"
+            checked={chatEnabled}
+            onChange={(e) => setChatEnabled(e.target.checked)}
+          />
+          Chat en slimme huiswerk-interpretatie aan
+        </label>
+        <label className="row">
+          Model{" "}
+          <input value={model} onChange={(e) => setModel(e.target.value)} />
+        </label>
+        <label className="row">
+          OpenAI API-sleutel{" "}
+          <input
+            type="password"
+            placeholder={health?.chat === "no-key" ? "sk-..." : "•••••• (al ingesteld — laat leeg om te houden)"}
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </label>
+        <div className="row">
+          <button type="submit">Opslaan</button>
+          {health?.chat === "ready" && (
+            <button type="button" onClick={testChat}>Test chat</button>
+          )}
+        </div>
+      </form>
+      {message !== null && <p>{message}</p>}
+    </section>
+  )
+}
+
 const UpdateSection = () => {
   const healthResult = useAtomValue(healthAtom)
   const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
@@ -224,6 +314,7 @@ export const SettingsPage = () => (
   <div className="settings-page">
     <SomtodaySection />
     <PromptsSection />
+    <AiSection />
     <UpdateSection />
   </div>
 )

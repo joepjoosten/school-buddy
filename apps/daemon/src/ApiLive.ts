@@ -1,9 +1,10 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { Ai, KC_OPENAI_KEY } from "./Ai.ts"
 import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
-import { Chat } from "./Chat.ts"
+import { keychainDelete, keychainSet } from "./Keychain.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { toDateOnly } from "./time.ts"
@@ -49,20 +50,37 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
           payload.answer !== null &&
           payload.answer.trim().length > 0
         ) {
+          const answer = payload.answer.trim()
           const now = new Date()
-          const next = prompt.subject === null
-            ? null
-            : yield* store.nextLessonForSubject(prompt.subject, now.toISOString())
-          const fallback = new Date(now.getTime() + 24 * 3600_000)
-          yield* store.createHomework(
-            {
-              subject: prompt.subject ?? "onbekend",
-              dueDate: next !== null ? next.start.slice(0, 10) : toDateOnly(fallback),
-              description: payload.answer.trim(),
-              lessonId: prompt.lessonId
-            },
-            "self"
-          )
+          const week = yield* store.weekData(toDateOnly(now))
+          const upcoming = week.lessons.filter((l) => l.start > now.toISOString())
+          const ai = yield* Ai
+          const interpreted = yield* ai.interpretHomework({
+            answer,
+            subject: prompt.subject,
+            upcoming
+          })
+          if (interpreted !== null) {
+            yield* store.createHomework(
+              { ...interpreted, lessonId: prompt.lessonId },
+              "self"
+            )
+          } else {
+            // naive fallback: raw text, due at the next lesson of the subject
+            const next = prompt.subject === null
+              ? null
+              : yield* store.nextLessonForSubject(prompt.subject, now.toISOString())
+            const fallback = new Date(now.getTime() + 24 * 3600_000)
+            yield* store.createHomework(
+              {
+                subject: prompt.subject ?? "onbekend",
+                dueDate: next !== null ? next.start.slice(0, 10) : toDateOnly(fallback),
+                description: answer,
+                lessonId: prompt.lessonId
+              },
+              "self"
+            )
+          }
         }
         return updated
       })))
@@ -73,8 +91,8 @@ const SignalsLive = HttpApiBuilder.group(Api, "signals", (handlers) =>
 const ChatLive = HttpApiBuilder.group(Api, "chat", (handlers) =>
   handlers.handle("send", ({ payload }) =>
     Effect.gen(function* () {
-      const chat = yield* Chat
-      const reply = yield* chat.send(payload.message)
+      const ai = yield* Ai
+      const reply = yield* ai.chat(payload.message)
       return { reply }
     })))
 
@@ -82,7 +100,17 @@ const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
   handlers
     .handle("get", () => Store.pipe(Effect.flatMap((store) => store.getSettings)))
     .handle("update", ({ payload }) =>
-      Store.pipe(Effect.flatMap((store) => store.setSettings(payload)))))
+      Store.pipe(Effect.flatMap((store) => store.setSettings(payload))))
+    .handle("setOpenAiKey", ({ payload }) =>
+      Effect.gen(function* () {
+        const key = payload.key.trim()
+        if (key === "") {
+          yield* keychainDelete(KC_OPENAI_KEY)
+          return { ok: true, message: "Sleutel verwijderd" }
+        }
+        yield* keychainSet(KC_OPENAI_KEY, key)
+        return { ok: true, message: "Sleutel opgeslagen in de Keychain" }
+      })))
 
 const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
   handlers
@@ -128,9 +156,12 @@ const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>
       const authenticated = yield* somtoday.isAuthenticated
       const lastSync = yield* store.getMeta("somtoday.lastSync")
       const latestVersion = yield* store.getMeta("update.latest")
+      const ai = yield* Ai
+      const chat = yield* ai.status
       return {
         status: "ok" as const,
         somtoday: authenticated ? ("authenticated" as const) : ("unauthenticated" as const),
+        chat,
         lastSync,
         version: VERSION,
         latestVersion

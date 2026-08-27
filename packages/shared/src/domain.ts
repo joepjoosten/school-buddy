@@ -119,14 +119,20 @@ export const Settings = Schema.Struct({
   promptsEnabled: Schema.Boolean,
   /** no questions between quietStart and quietEnd (may wrap midnight), "HH:MM" */
   quietStart: Schema.String,
-  quietEnd: Schema.String
+  quietEnd: Schema.String,
+  /** whether the AI chat (and AI homework interpretation) is enabled */
+  chatEnabled: Schema.Boolean,
+  /** OpenAI model used for chat + homework interpretation */
+  openAiModel: Schema.String
 })
 export type Settings = typeof Settings.Type
 
 export const defaultSettings: Settings = {
   promptsEnabled: true,
   quietStart: "21:00",
-  quietEnd: "07:30"
+  quietEnd: "07:30",
+  chatEnabled: true,
+  openAiModel: "gpt-5.5-terra"
 }
 
 // --- Somtoday connect flow (web-based setup) -------------------------------
@@ -151,9 +157,13 @@ export type ActionResult = typeof ActionResult.Type
 
 // --- Health ---------------------------------------------------------------
 
+export const ChatStatus = Schema.Literals(["ready", "no-key", "disabled"])
+export type ChatStatus = typeof ChatStatus.Type
+
 export const Health = Schema.Struct({
   status: Schema.Literals(["ok"]),
   somtoday: Schema.Literals(["authenticated", "unauthenticated"]),
+  chat: ChatStatus,
   /** ISO datetime of last successful roster sync, null if never */
   lastSync: Schema.NullOr(Schema.String),
   /** running daemon version ("dev" outside releases) */

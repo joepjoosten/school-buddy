@@ -67,6 +67,11 @@ const settings = HttpApiGroup.make("settings").add(
   HttpApiEndpoint.put("update", "/api/settings", {
     payload: Settings,
     success: Settings
+  }),
+  HttpApiEndpoint.post("setOpenAiKey", "/api/settings/openai-key", {
+    // empty string removes the key
+    payload: Schema.Struct({ key: Schema.String }),
+    success: ActionResult
   })
 )
 

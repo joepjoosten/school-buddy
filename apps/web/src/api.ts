@@ -73,6 +73,9 @@ export const connectFinish = (redirectUrl: string) =>
 
 export const testSomtoday = request(ActionResult, "/api/somtoday/test", { method: "POST" })
 
+export const setOpenAiKey = (key: string) =>
+  request(ActionResult, "/api/settings/openai-key", post({ key }))
+
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>
   Effect.runPromise(effect)

@@ -5,8 +5,8 @@ import * as Layer from "effect/Layer"
 import { HttpRouter, HttpStaticServer } from "effect/unstable/http"
 import { existsSync, mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { AiLive } from "./Ai.ts"
 import { ApiLive } from "./ApiLive.ts"
-import { ChatStubLive } from "./Chat.ts"
 import { SchedulerLive } from "./Scheduler.ts"
 import { SomtodayLive } from "./Somtoday.ts"
 import { StoreLive } from "./Store.ts"
@@ -33,7 +33,7 @@ export const daemonEffect = (): Effect.Effect<never> => {
   const SqlLive = SqliteClient.layer({ filename: `${dataDir}/school-buddy.sqlite` })
 
   const AppServices = Layer.provideMerge(
-    Layer.mergeAll(SomtodayLive, ChatStubLive),
+    Layer.mergeAll(SomtodayLive, AiLive),
     StoreLive.pipe(Layer.provide(SqlLive))
   )
 

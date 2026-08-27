@@ -304,8 +304,13 @@ No Apple Developer account needed anywhere.
 - [x] Scheduler (30m sync, 5m prompt planning) + SQLite store + signal handling
 - [x] Hammerspoon: wake/sleep/lock watcher, menubar, popup dialogs (Dutch)
 - [x] Week web UI (React + Effect, ←/→ weeks, homework add/toggle, chat panel)
-- [ ] Chat agent — currently a stub; wire OpenAI (Codex subscription / API key
-      fallback) with read-only roster/homework tools
+- [x] Chat agent (v0.5.0): Effect `Ai` service on `@effect/ai-openai` +
+      `effect/unstable/ai` (Chat session with history, Toolkit with
+      rooster_week/huiswerk_toevoegen tools, generateObject for interpreting
+      free-text homework answers into structured items, naive fallback).
+      Configurable in settings: chat on/off, model; API key in Keychain via
+      the settings page. Codex-subscription auth not pursued — plain OpenAI API
+      key per the user's direction.
 - [x] Real Somtoday login verified end-to-end (2026-08-27): sync fetches lessons +
       homework. Live-data fixes: `additionalObjects.vak` can be null; `titel` is
       "locatie - omschrijving - docenten"; homework subject comes from

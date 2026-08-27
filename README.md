@@ -47,7 +47,16 @@ Koppelen kan via Instellingen in de webpagina of met
 
 `http://127.0.0.1:4823/#instellingen` (of 🎒-menu → "⚙️ Instellingen"):
 Somtoday koppelen vanuit de browser, huiswerkvragen aan/uit + stiltevenster,
+AI-chat (aan/uit, model, OpenAI API-sleutel — opgeslagen in de Keychain),
 en versie-informatie.
+
+### AI-chat
+
+Met een OpenAI-sleutel kan je zoon chatten met de buddy (rooster- en
+huiswerkvragen via tools op de echte data, plus huiswerkhulp), en worden
+antwoorden op de popup ("heb je huiswerk gekregen?") door het model omgezet
+naar nette huiswerkitems met het juiste vak en de juiste datum. Zonder
+sleutel werkt alles gewoon, met eenvoudige regels in plaats van AI.
 
 ### Updaten
 
