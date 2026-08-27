@@ -35,6 +35,14 @@ tar -xzf school-buddy-*.tar.gz && cd school-buddy-*/
 Een release maken: push een tag (`git tag v0.1.0 && git push --tags`) — de
 `Release`-workflow compileert de binaries en publiceert de tarballs.
 
+### Somtoday koppelen
+
+De installer bouwt lokaal een klein hulp-appje (`~/Applications/SomtodayCallback.app`)
+dat het `somtoday://`-adres na de Microsoft-login opvangt en de koppeling
+automatisch afrondt — de browser vraagt alleen "SomtodayCallback openen?".
+Koppelen kan via Instellingen in de webpagina of met
+`~/.school-buddy/app/school-buddy setup "<schoolnaam>"`.
+
 ### Instellingen
 
 `http://127.0.0.1:4823/#instellingen` (of 🎒-menu → "⚙️ Instellingen"):

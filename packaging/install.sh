@@ -53,6 +53,23 @@ PLIST
 launchctl bootout "gui/$UID/$PLIST_LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$UID" "$PLIST_DEST"
 
+echo "==> somtoday:// callback-app"
+# Built on this machine (osacompile) so Gatekeeper stays out of the way; it
+# catches the OAuth redirect and completes the Somtoday koppeling automatically.
+mkdir -p "$HOME/Applications"
+CB_APP="$HOME/Applications/SomtodayCallback.app"
+rm -rf "$CB_APP"
+osacompile -o "$CB_APP" "$SRC/somtoday-callback.applescript"
+CB_PLIST="$CB_APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string nl.schoolbuddy.callback" "$CB_PLIST" 2>/dev/null \
+  || /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier nl.schoolbuddy.callback" "$CB_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$CB_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$CB_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLName string nl.schoolbuddy.callback" "$CB_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$CB_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string somtoday" "$CB_PLIST"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$CB_APP"
+
 echo "==> Hammerspoon"
 if [ ! -d "/Applications/Hammerspoon.app" ]; then
   if command -v brew >/dev/null; then

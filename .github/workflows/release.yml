@@ -40,6 +40,7 @@ jobs:
             mkdir -p "out/$pkg/hammerspoon"
             cp hammerspoon/school-buddy.lua "out/$pkg/hammerspoon/"
             cp packaging/install.sh "out/$pkg/install.sh"
+            cp packaging/somtoday-callback.applescript "out/$pkg/somtoday-callback.applescript"
             chmod +x "out/$pkg/install.sh" "out/$pkg/school-buddy"
             tar -czf "out/$pkg.tar.gz" -C out "$pkg"
           done

@@ -5,6 +5,16 @@ import { useEffect, useState } from "react"
 import { connectFinish, connectStart, runEffect, saveSettings, searchSchools } from "./api.ts"
 import { healthAtom, settingsAtom } from "./atoms.ts"
 
+/** Poll health while a connect attempt is in flight, so the page flips to
+ * "gekoppeld" as soon as SomtodayCallback.app finishes the flow. */
+const useHealthPolling = (active: boolean, refresh: () => void) => {
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(refresh, 3000)
+    return () => clearInterval(id)
+  }, [active, refresh])
+}
+
 const SomtodaySection = () => {
   const healthResult = useAtomValue(healthAtom)
   const refreshHealth = useAtomRefresh(healthAtom)
@@ -15,6 +25,15 @@ const SomtodaySection = () => {
   const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(null)
   const [redirectUrl, setRedirectUrl] = useState("")
   const [message, setMessage] = useState<string | null>(null)
+
+  const connected = health !== null && health.somtoday === "authenticated"
+  useHealthPolling(authorizeUrl !== null && !connected, refreshHealth)
+  useEffect(() => {
+    if (connected && authorizeUrl !== null) {
+      setAuthorizeUrl(null)
+      setMessage("✅ Somtoday gekoppeld!")
+    }
+  }, [connected, authorizeUrl])
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -81,9 +100,10 @@ const SomtodaySection = () => {
             <a href={authorizeUrl} target="_blank" rel="noreferrer">
               Open de inlogpagina hier
             </a>
-            . Na het inloggen eindigt de browser bij een niet-werkende{" "}
-            <code>somtoday://</code>-link — kopieer die volledige URL en plak hem
-            hieronder.
+            . Na het inloggen vraagt de browser om <b>SomtodayCallback</b> te openen —
+            sta dat toe, dan wordt de koppeling automatisch afgerond. Vraagt de browser
+            niets en zie je een foutmelding over een <code>somtoday://</code>-adres?
+            Kopieer dan die volledige URL en plak hem hieronder.
           </p>
           <div className="row">
             <input
