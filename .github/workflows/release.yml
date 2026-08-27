@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build web app
+        run: bun run build
+        working-directory: apps/web
+
+      - name: Compile daemon binaries
+        working-directory: apps/daemon
+        run: |
+          bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/school-buddy-arm64
+          bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/school-buddy-x64
+
+      - name: Assemble tarballs
+        run: |
+          for arch in arm64 x64; do
+            pkg="school-buddy-${GITHUB_REF_NAME}-darwin-${arch}"
+            mkdir -p "out/$pkg"
+            cp "apps/daemon/dist/school-buddy-${arch}" "out/$pkg/school-buddy"
+            cp -R apps/web/dist "out/$pkg/web"
+            mkdir -p "out/$pkg/hammerspoon"
+            cp hammerspoon/school-buddy.lua "out/$pkg/hammerspoon/"
+            cp packaging/install.sh "out/$pkg/install.sh"
+            chmod +x "out/$pkg/install.sh" "out/$pkg/school-buddy"
+            tar -czf "out/$pkg.tar.gz" -C out "$pkg"
+          done
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            out/school-buddy-*.tar.gz \
+            --title "School Buddy $GITHUB_REF_NAME" \
+            --generate-notes

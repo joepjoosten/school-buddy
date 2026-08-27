@@ -1,0 +1,17 @@
+{
+  "name": "school-buddy",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter @school-buddy/daemon dev",
+    "test": "bun test",
+    "typecheck": "tsc -p packages/shared && tsc -p apps/daemon && tsc -p apps/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
