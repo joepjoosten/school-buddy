@@ -34,13 +34,42 @@ const fetchLatestRelease = async (): Promise<Release | null> => {
       headers: {
         accept: "application/vnd.github+json",
         ...(token !== null ? { authorization: `Bearer ${token}` } : {})
-      }
+      },
+      signal: AbortSignal.timeout(15_000)
     })
     if (!res.ok) return null
     return (await res.json()) as Release
   } catch {
     return null
   }
+}
+
+/**
+ * Download with manual redirect handling. Bun's automatic redirect following
+ * hangs on GitHub's release-asset CDN redirect (observed with Bun 1.3), and
+ * auth headers must not be forwarded to the CDN host anyway.
+ */
+export const download = async (
+  url: string,
+  headers: Record<string, string>
+): Promise<Response> => {
+  let current = url
+  let currentHeaders = headers
+  for (let hop = 0; hop < 5; hop++) {
+    const res = await fetch(current, {
+      headers: currentHeaders,
+      redirect: "manual",
+      signal: AbortSignal.timeout(120_000)
+    })
+    const location = res.headers.get("location")
+    if (res.status >= 300 && res.status < 400 && location !== null) {
+      current = new URL(location, current).toString()
+      currentHeaders = {} // drop auth for the CDN host
+      continue
+    }
+    return res
+  }
+  throw new Error("te veel redirects")
 }
 
 /** Latest release tag on GitHub, or null when it cannot be determined. */
@@ -89,15 +118,17 @@ export const runUpdate = async (checkOnly: boolean): Promise<void> => {
   console.log(`Downloaden: ${asset.browser_download_url}`)
   // with a token, download through the API (works on private repos)
   const res = token !== null
-    ? await fetch(asset.url, {
-      headers: { authorization: `Bearer ${token}`, accept: "application/octet-stream" }
+    ? await download(asset.url, {
+      authorization: `Bearer ${token}`,
+      accept: "application/octet-stream"
     })
-    : await fetch(asset.browser_download_url)
+    : await download(asset.browser_download_url, {})
   if (!res.ok) {
     console.error(`Download mislukt (${res.status}).`)
     process.exit(1)
   }
-  await Bun.write(tarball, res)
+  // read fully before writing: Bun.write(path, response) hangs on this stream
+  await Bun.write(tarball, await res.arrayBuffer())
 
   const untar = Bun.spawnSync(["tar", "-xzf", tarball, "-C", tmp])
   if (untar.exitCode !== 0) {
