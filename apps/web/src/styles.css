@@ -100,7 +100,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   border-left: 1px solid #eef1f7; text-align: center;
 }
 .cal-day-head small { color: #8a94ab; font-weight: 400; }
-.cal-day-head.today { color: #4f46e5; background: #eef2ff; }
+.cal-day-head.today { color: #4f46e5; background: #dfe4ff; }
 .cal-body { position: relative; }
 .cal-gutter { position: relative; }
 .cal-hour {
@@ -111,7 +111,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   position: relative; border-left: 1px solid #eef1f7;
   background-image: linear-gradient(to bottom, #eef1f7 0, #eef1f7 1px, transparent 1px);
 }
-.cal-day.today { background-color: #f5f6ff; }
+.cal-day.today { background-color: #e8ecff; }
 .cal-lesson {
   position: absolute; box-sizing: border-box; overflow: hidden;
   background: #e0e7ff; border-left: 3px solid #6366f1; border-radius: 6px;
@@ -145,7 +145,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; padding: 0.5rem 0;
 }
 .hw-day { border-left: 1px solid #eef1f7; padding: 0.4rem; min-height: 3rem; }
-.hw-day.today { background: #f5f6ff; }
+.hw-day.today { background: #e8ecff; }
 .hw-day .empty { color: #c5cbd8; font-size: 0.8rem; margin: 0.2rem 0; text-align: center; }
 .homework {
   display: flex; gap: 0.35rem; align-items: baseline; background: #fff7ed;
