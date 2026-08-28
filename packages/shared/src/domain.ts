@@ -114,6 +114,15 @@ export type ChatReply = typeof ChatReply.Type
 
 // --- Settings -------------------------------------------------------------
 
+export const AiProvider = Schema.Literals(["openai", "openrouter"])
+export type AiProvider = typeof AiProvider.Type
+
+/** Default model per provider, used when `aiModel` is null ("automatic"). */
+export const defaultAiModels: Record<AiProvider, string> = {
+  openai: "gpt-5.5-terra",
+  openrouter: "openai/gpt-5.6-terra"
+}
+
 export const Settings = Schema.Struct({
   /** whether the buddy asks homework questions at all */
   promptsEnabled: Schema.Boolean,
@@ -122,8 +131,10 @@ export const Settings = Schema.Struct({
   quietEnd: Schema.String,
   /** whether the AI chat (and AI homework interpretation) is enabled */
   chatEnabled: Schema.Boolean,
-  /** OpenAI model used for chat + homework interpretation */
-  openAiModel: Schema.String
+  /** which LLM provider to use */
+  aiProvider: AiProvider,
+  /** explicit model id; null = automatic (provider default when available) */
+  aiModel: Schema.NullOr(Schema.String)
 })
 export type Settings = typeof Settings.Type
 
@@ -132,8 +143,18 @@ export const defaultSettings: Settings = {
   quietStart: "21:00",
   quietEnd: "07:30",
   chatEnabled: true,
-  openAiModel: "gpt-5.5-terra"
+  aiProvider: "openrouter",
+  aiModel: null
 }
+
+export const AiModels = Schema.Struct({
+  provider: AiProvider,
+  models: Schema.Array(Schema.String),
+  /** the model that will actually be used with the current settings */
+  resolvedModel: Schema.String,
+  defaultModel: Schema.String
+})
+export type AiModels = typeof AiModels.Type
 
 // --- Somtoday connect flow (web-based setup) -------------------------------
 

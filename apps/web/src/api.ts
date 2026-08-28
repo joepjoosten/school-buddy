@@ -1,5 +1,7 @@
 import {
   ActionResult,
+  AiModels,
+  AiProvider,
   ChatReply,
   ConnectStartResult,
   Health,
@@ -73,8 +75,10 @@ export const connectFinish = (redirectUrl: string) =>
 
 export const testSomtoday = request(ActionResult, "/api/somtoday/test", { method: "POST" })
 
-export const setOpenAiKey = (key: string) =>
-  request(ActionResult, "/api/settings/openai-key", post({ key }))
+export const setAiKey = (provider: typeof AiProvider.Type, key: string) =>
+  request(ActionResult, "/api/settings/ai-key", post({ provider, key }))
+
+export const fetchAiModels = request(AiModels, "/api/ai/models")
 
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>

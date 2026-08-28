@@ -336,9 +336,13 @@ const makeStore = Effect.gen(function* () {
         const raw = rows[0]?.value
         if (raw === undefined) return defaultSettings
         try {
-          // merge over defaults so settings stored by older versions keep
-          // their values when new fields are added
-          const merged = { ...defaultSettings, ...JSON.parse(raw) }
+          // merge over defaults (dropping keys from older versions) so stored
+          // settings survive both added and removed fields
+          const parsed = JSON.parse(raw) as Record<string, unknown>
+          const merged: Record<string, unknown> = { ...defaultSettings }
+          for (const key of Object.keys(defaultSettings)) {
+            if (parsed[key] !== undefined) merged[key] = parsed[key]
+          }
           return Option.getOrElse(
             Schema.decodeUnknownOption(SettingsSchema)(merged),
             () => defaultSettings

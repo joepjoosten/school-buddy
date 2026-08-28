@@ -38,6 +38,8 @@ button:hover { background: #e8edf7; }
 .settings-form { display: flex; flex-direction: column; gap: 0.6rem; }
 .finish { margin-top: 0.6rem; }
 .finish code { background: #eef2ff; padding: 0 0.3rem; border-radius: 4px; }
+.settings-page .hint { color: #8a94ab; font-size: 0.8rem; margin: 0.4rem 0 0; }
+.settings-page select { border: 1px solid #c6cede; border-radius: 8px; padding: 0.35rem 0.5rem; }
 .error { color: #b91c1c; }
 
 main { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; margin-top: 1rem; }

@@ -2,6 +2,7 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { School, Settings } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
+import type { AiProvider as AiProviderSchema } from "@school-buddy/shared"
 import {
   connectFinish,
   connectStart,
@@ -9,10 +10,12 @@ import {
   saveSettings,
   searchSchools,
   sendChat,
-  setOpenAiKey,
+  setAiKey,
   testSomtoday
 } from "./api.ts"
-import { healthAtom, settingsAtom } from "./atoms.ts"
+import { aiModelsAtom, healthAtom, settingsAtom } from "./atoms.ts"
+
+type AiProviderType = typeof AiProviderSchema.Type
 
 /** Poll health while a connect attempt is in flight, so the page flips to
  * "gekoppeld" as soon as SomtodayCallback.app finishes the flow. */
@@ -208,33 +211,46 @@ const AiSection = () => {
 
   const settingsResult = useAtomValue(settingsAtom)
   const stored = AsyncResult.isSuccess(settingsResult) ? settingsResult.value : null
+
+  const modelsResult = useAtomValue(aiModelsAtom)
+  const refreshModels = useAtomRefresh(aiModelsAtom)
+  const aiModels = AsyncResult.isSuccess(modelsResult) ? modelsResult.value : null
+
   const [chatEnabled, setChatEnabled] = useState<boolean | null>(null)
-  const [model, setModel] = useState<string | null>(null)
+  const [provider, setProvider] = useState<AiProviderType | null>(null)
+  const [model, setModel] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   useEffect(() => {
     if (stored !== null && chatEnabled === null) {
       setChatEnabled(stored.chatEnabled)
-      setModel(stored.openAiModel)
+      setProvider(stored.aiProvider)
+      setModel(stored.aiModel ?? "")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stored])
 
-  if (stored === null || chatEnabled === null || model === null) {
+  if (stored === null || chatEnabled === null || provider === null) {
     return <section><h2>AI-chat</h2><p>Laden…</p></section>
   }
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    await runEffect(saveSettings({ ...stored, chatEnabled, openAiModel: model }))
+    await runEffect(saveSettings({
+      ...stored,
+      chatEnabled,
+      aiProvider: provider,
+      aiModel: model.trim() === "" ? null : model.trim()
+    }))
     if (apiKey.trim() !== "") {
-      const result = await runEffect(setOpenAiKey(apiKey.trim()))
+      const result = await runEffect(setAiKey(provider, apiKey.trim()))
       setMessage(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`)
       setApiKey("")
     } else {
       setMessage("✅ Opgeslagen")
     }
     refreshHealth()
+    refreshModels()
   }
 
   const testChat = async () => {
@@ -265,14 +281,40 @@ const AiSection = () => {
           Chat en slimme huiswerk-interpretatie aan
         </label>
         <label className="row">
-          Model{" "}
-          <input value={model} onChange={(e) => setModel(e.target.value)} />
+          Provider{" "}
+          <select
+            value={provider}
+            onChange={(e) => {
+              setProvider(e.target.value as AiProviderType)
+              setModel("")
+            }}
+          >
+            <option value="openrouter">OpenRouter</option>
+            <option value="openai">OpenAI</option>
+          </select>
         </label>
         <label className="row">
-          OpenAI API-sleutel{" "}
+          Model{" "}
+          <input
+            list="ai-models"
+            placeholder={aiModels !== null && provider === aiModels.provider
+              ? `automatisch (${aiModels.resolvedModel})`
+              : "automatisch"}
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          />
+          <datalist id="ai-models">
+            {(aiModels !== null && provider === aiModels.provider ? aiModels.models : [])
+              .map((id) => <option key={id} value={id} />)}
+          </datalist>
+        </label>
+        <label className="row">
+          API-sleutel ({provider === "openrouter" ? "OpenRouter" : "OpenAI"}){" "}
           <input
             type="password"
-            placeholder={health?.chat === "no-key" ? "sk-..." : "•••••• (al ingesteld — laat leeg om te houden)"}
+            placeholder={health?.chat === "no-key"
+              ? "sk-..."
+              : "•••••• (al ingesteld — laat leeg om te houden)"}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
@@ -284,6 +326,10 @@ const AiSection = () => {
           )}
         </div>
       </form>
+      <p className="hint">
+        Leeg model = automatisch: de standaard van de provider als die beschikbaar is
+        {aiModels !== null ? ` (${aiModels.defaultModel})` : ""}.
+      </p>
       {message !== null && <p>{message}</p>}
     </section>
   )

@@ -1,5 +1,7 @@
 import {
   ActionResult,
+  AiModels,
+  AiProvider,
   ChatReply,
   ChatRequest,
   ConnectStartResult,
@@ -68,10 +70,16 @@ const settings = HttpApiGroup.make("settings").add(
     payload: Settings,
     success: Settings
   }),
-  HttpApiEndpoint.post("setOpenAiKey", "/api/settings/openai-key", {
+  HttpApiEndpoint.post("setAiKey", "/api/settings/ai-key", {
     // empty string removes the key
-    payload: Schema.Struct({ key: Schema.String }),
+    payload: Schema.Struct({ provider: AiProvider, key: Schema.String }),
     success: ActionResult
+  })
+)
+
+const ai = HttpApiGroup.make("ai").add(
+  HttpApiEndpoint.get("models", "/api/ai/models", {
+    success: AiModels
   })
 )
 
@@ -107,5 +115,6 @@ export const Api = HttpApi.make("school-buddy").add(
   chat,
   settings,
   somtoday,
+  ai,
   health
 )

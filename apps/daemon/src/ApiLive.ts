@@ -1,7 +1,7 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
-import { Ai, KC_OPENAI_KEY } from "./Ai.ts"
+import { Ai, PROVIDERS } from "./Ai.ts"
 import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
@@ -101,16 +101,20 @@ const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
     .handle("get", () => Store.pipe(Effect.flatMap((store) => store.getSettings)))
     .handle("update", ({ payload }) =>
       Store.pipe(Effect.flatMap((store) => store.setSettings(payload))))
-    .handle("setOpenAiKey", ({ payload }) =>
+    .handle("setAiKey", ({ payload }) =>
       Effect.gen(function* () {
+        const account = PROVIDERS[payload.provider].keyAccount
         const key = payload.key.trim()
         if (key === "") {
-          yield* keychainDelete(KC_OPENAI_KEY)
+          yield* keychainDelete(account)
           return { ok: true, message: "Sleutel verwijderd" }
         }
-        yield* keychainSet(KC_OPENAI_KEY, key)
+        yield* keychainSet(account, key)
         return { ok: true, message: "Sleutel opgeslagen in de Keychain" }
       })))
+
+const AiApiLive = HttpApiBuilder.group(Api, "ai", (handlers) =>
+  handlers.handle("models", () => Ai.pipe(Effect.flatMap((ai) => ai.models))))
 
 const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
   handlers
@@ -177,6 +181,7 @@ export const ApiLive = HttpApiBuilder.layer(Api).pipe(
     ChatLive,
     SettingsLive,
     SomtodayApiLive,
+    AiApiLive,
     HealthLive
   ])
 )

@@ -1,5 +1,13 @@
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import type { ChatStatus, HomeworkInput, Lesson } from "@school-buddy/shared"
+import type {
+  AiModels,
+  AiProvider,
+  ChatStatus,
+  HomeworkInput,
+  Lesson,
+  Settings
+} from "@school-buddy/shared"
+import { defaultAiModels } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -11,7 +19,21 @@ import { keychainGet } from "./Keychain.ts"
 import { Store } from "./Store.ts"
 import { toDateOnly } from "./time.ts"
 
-export const KC_OPENAI_KEY = "openai.api_key"
+export const PROVIDERS: Record<
+  AiProvider,
+  { readonly apiUrl: string; readonly keyAccount: string; readonly publicModelList: boolean }
+> = {
+  openai: {
+    apiUrl: "https://api.openai.com/v1",
+    keyAccount: "openai.api_key",
+    publicModelList: false
+  },
+  openrouter: {
+    apiUrl: "https://openrouter.ai/api/v1",
+    keyAccount: "openrouter.api_key",
+    publicModelList: true
+  }
+}
 
 export interface AiShape {
   /** Chat with the buddy; never fails, returns a friendly Dutch message on problems. */
@@ -27,6 +49,8 @@ export interface AiShape {
     readonly upcoming: ReadonlyArray<Lesson>
   }) => Effect.Effect<HomeworkInput | null>
   readonly status: Effect.Effect<ChatStatus>
+  /** Available models for the configured provider + the model auto-resolution. */
+  readonly models: Effect.Effect<AiModels>
 }
 
 export class Ai extends Context.Service<Ai, AiShape>()("app/Ai") {}
@@ -82,19 +106,72 @@ const makeAi = Effect.gen(function* () {
         .pipe(Effect.map((item) => `Toegevoegd: ${item.subject} — ${item.dueDate}`))
   })
 
-  const providerLayer = (model: string, apiKey: string) =>
+  const providerLayer = (provider: AiProvider, model: string, apiKey: string) =>
     OpenAiLanguageModel.model(model).pipe(
       Layer.provide(
-        OpenAiClient.layer({ apiKey: Redacted.make(apiKey) }).pipe(
-          Layer.provide(FetchHttpClient.layer)
-        )
+        OpenAiClient.layer({
+          apiKey: Redacted.make(apiKey),
+          apiUrl: PROVIDERS[provider].apiUrl
+        }).pipe(Layer.provide(FetchHttpClient.layer))
       )
     )
+
+  const providerKey = (provider: AiProvider): Effect.Effect<string | null> =>
+    keychainGet(PROVIDERS[provider].keyAccount)
+
+  // model list per provider, cached for an hour
+  const modelCache = new Map<AiProvider, { at: number; models: Array<string> }>()
+
+  const listModels = (provider: AiProvider): Effect.Effect<Array<string>> =>
+    Effect.gen(function* () {
+      const cached = modelCache.get(provider)
+      if (cached !== undefined && Date.now() - cached.at < 3600_000) return cached.models
+      const key = yield* providerKey(provider)
+      if (key === null && !PROVIDERS[provider].publicModelList) return []
+      const models = yield* Effect.tryPromise(async () => {
+        const res = await fetch(`${PROVIDERS[provider].apiUrl}/models`, {
+          headers: key !== null ? { authorization: `Bearer ${key}` } : {},
+          signal: AbortSignal.timeout(15_000)
+        })
+        if (!res.ok) throw new Error(`models ${res.status}`)
+        const json = (await res.json()) as { data?: Array<{ id?: string }> }
+        return (json.data ?? [])
+          .map((m) => m.id)
+          .filter((id): id is string => typeof id === "string")
+          .sort()
+      }).pipe(Effect.catchCause(() => Effect.succeed([] as Array<string>)))
+      if (models.length > 0) modelCache.set(provider, { at: Date.now(), models })
+      return models
+    })
+
+  /** Explicit model, or the provider default when available, or the first listed. */
+  const resolveModel = (settings: Settings): Effect.Effect<string> =>
+    Effect.gen(function* () {
+      if (settings.aiModel !== null && settings.aiModel.trim() !== "") {
+        return settings.aiModel
+      }
+      const fallback = defaultAiModels[settings.aiProvider]
+      const models = yield* listModels(settings.aiProvider)
+      if (models.length === 0 || models.includes(fallback)) return fallback
+      return models[0] ?? fallback
+    })
+
+  const models: Effect.Effect<AiModels> = Effect.gen(function* () {
+    const settings = yield* store.getSettings
+    const list = yield* listModels(settings.aiProvider)
+    const resolvedModel = yield* resolveModel(settings)
+    return {
+      provider: settings.aiProvider,
+      models: list,
+      resolvedModel,
+      defaultModel: defaultAiModels[settings.aiProvider]
+    }
+  })
 
   const status: Effect.Effect<ChatStatus> = Effect.gen(function* () {
     const settings = yield* store.getSettings
     if (!settings.chatEnabled) return "disabled" as const
-    const key = yield* keychainGet(KC_OPENAI_KEY)
+    const key = yield* providerKey(settings.aiProvider)
     return key === null ? ("no-key" as const) : ("ready" as const)
   })
 
@@ -104,10 +181,11 @@ const makeAi = Effect.gen(function* () {
       if (!settings.chatEnabled) {
         return "De chat staat uit. Zet hem aan bij ⚙️ Instellingen."
       }
-      const apiKey = yield* keychainGet(KC_OPENAI_KEY)
+      const apiKey = yield* providerKey(settings.aiProvider)
       if (apiKey === null) {
-        return "Er is nog geen OpenAI-sleutel ingesteld — vraag papa om die toe te voegen bij ⚙️ Instellingen."
+        return "Er is nog geen API-sleutel ingesteld — vraag papa om die toe te voegen bij ⚙️ Instellingen."
       }
+      const model = yield* resolveModel(settings)
 
       const run = Effect.gen(function* () {
         const tools = yield* toolkit.pipe(Effect.provide(handlers))
@@ -120,7 +198,7 @@ const makeAi = Effect.gen(function* () {
       })
 
       return yield* run.pipe(
-        Effect.provide(providerLayer(settings.openAiModel, apiKey)),
+        Effect.provide(providerLayer(settings.aiProvider, model, apiKey)),
         Effect.catchCause((cause) =>
           Effect.logWarning(`chat failed: ${cause}`).pipe(
             Effect.map(() =>
@@ -135,8 +213,9 @@ const makeAi = Effect.gen(function* () {
     Effect.gen(function* () {
       const settings = yield* store.getSettings
       if (!settings.chatEnabled) return null
-      const apiKey = yield* keychainGet(KC_OPENAI_KEY)
+      const apiKey = yield* providerKey(settings.aiProvider)
       if (apiKey === null) return null
+      const model = yield* resolveModel(settings)
 
       const lessonList = upcoming
         .slice(0, 12)
@@ -158,7 +237,7 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       })
 
       const result = yield* run.pipe(
-        Effect.provide(providerLayer(settings.openAiModel, apiKey)),
+        Effect.provide(providerLayer(settings.aiProvider, model, apiKey)),
         Effect.map((response) => response.value),
         Effect.catchCause((cause) =>
           Effect.logWarning(`interpretHomework failed: ${cause}`).pipe(Effect.map(() => null))
@@ -173,7 +252,7 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       }
     })
 
-  const shape: AiShape = { chat, interpretHomework, status }
+  const shape: AiShape = { chat, interpretHomework, status, models }
   return shape
 })
 
