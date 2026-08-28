@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "bun run --filter @school-buddy/daemon dev",
     "test": "bun test",
-    "typecheck": "tsc -p packages/shared && tsc -p apps/daemon && tsc -p apps/web"
+    "typecheck": "tsc -p packages/shared && tsc -p apps/daemon && tsc -p apps/web",
+    "preview": "bun run --filter @school-buddy/web build && SCHOOL_BUDDY_PORT=4899 bun run --cwd apps/daemon src/cli.ts daemon"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
