@@ -131,6 +131,11 @@ export const WeekGrid = ({
                 {`${h}`.padStart(2, "0")}:00
               </div>
             ))}
+            {showNow && (
+              <div className="cal-now-label" style={{ top: yOf(nowMinutes) }}>
+                {`${now.getHours()}`.padStart(2, "0")}:{`${now.getMinutes()}`.padStart(2, "0")}
+              </div>
+            )}
           </div>
           {days.map((d, i) => (
             <div
@@ -173,17 +178,10 @@ export const WeekGrid = ({
                 }
               )}
               {showNow && i === todayIndex && (
-                <div className="cal-now-dot" style={{ top: yOf(nowMinutes) }} />
+                <div className="cal-now" style={{ top: yOf(nowMinutes) }} />
               )}
             </div>
           ))}
-          {showNow && (
-            <div className="cal-now" style={{ top: yOf(nowMinutes) }}>
-              <span className="cal-now-label">
-                {`${now.getHours()}`.padStart(2, "0")}:{`${now.getMinutes()}`.padStart(2, "0")}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 

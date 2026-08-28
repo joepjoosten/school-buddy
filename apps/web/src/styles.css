@@ -125,16 +125,16 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-lesson.compact .loc { display: none; }
 .cal-lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
 .cal-now {
-  position: absolute; left: 56px; right: 0; height: 0; border-top: 2px solid #ef4444;
+  position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #ef4444;
   pointer-events: none; z-index: 2;
 }
-.cal-now-label {
-  position: absolute; left: -52px; top: -0.55rem; font-size: 0.68rem; font-weight: 700;
-  color: #ef4444; background: #fff; padding: 0 3px; border-radius: 4px;
+.cal-now::before {
+  content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px;
+  border-radius: 50%; background: #ef4444;
 }
-.cal-now-dot {
-  position: absolute; left: -5px; width: 10px; height: 10px; border-radius: 50%;
-  background: #ef4444; transform: translateY(-4px); z-index: 3;
+.cal-now-label {
+  position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.7rem;
+  font-weight: 700; color: #ef4444; background: #fff; padding: 0 3px; border-radius: 4px; z-index: 2;
 }
 .cal-divider { border: 0; border-top: 2px solid #d5dbe8; margin: 0.4rem 0; }
 
