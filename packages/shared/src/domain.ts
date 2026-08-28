@@ -82,8 +82,11 @@ export type Prompt = typeof Prompt.Type
 
 export const PromptAnswer = Schema.Struct({
   id: Schema.String,
-  /** free text answer; null when dismissed or answered "no homework" */
-  answer: Schema.NullOr(Schema.String),
+  /**
+   * free text answer; null/absent when dismissed or answered "no homework"
+   * (optional because Lua clients cannot encode nil table values)
+   */
+  answer: Schema.optional(Schema.NullOr(Schema.String)),
   dismissed: Schema.Boolean
 })
 export type PromptAnswer = typeof PromptAnswer.Type

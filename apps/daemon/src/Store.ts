@@ -309,7 +309,7 @@ const makeStore = Effect.gen(function* () {
 
     answerPrompt: (answer) =>
       sql`update prompts
-        set status = ${answer.dismissed ? "dismissed" : "answered"}, answer = ${answer.answer}
+        set status = ${answer.dismissed ? "dismissed" : "answered"}, answer = ${answer.answer ?? null}
         where id = ${answer.id} and status = 'pending'`.pipe(
         Effect.map(() => true),
         Effect.orDie

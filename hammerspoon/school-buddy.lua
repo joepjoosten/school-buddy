@@ -13,12 +13,18 @@ local promptQueue = {}
 local showing = false
 
 local function postAnswer(id, answer, dismissed)
-  hs.http.asyncPost(
-    DAEMON .. "/api/prompts/answer",
-    hs.json.encode({ id = id, answer = answer, dismissed = dismissed }),
-    JSON_HEADERS,
-    function() end
+  -- note: a nil `answer` disappears from a Lua table, so hs.json.encode would
+  -- drop the key entirely; encode with an explicit JSON null instead
+  local answerJson = answer ~= nil and hs.json.encode(answer) or "null"
+  local body = string.format(
+    '{"id":%s,"answer":%s,"dismissed":%s}',
+    hs.json.encode(id), answerJson, tostring(dismissed)
   )
+  hs.http.asyncPost(DAEMON .. "/api/prompts/answer", body, JSON_HEADERS, function(status)
+    if status < 200 or status >= 300 then
+      print("school-buddy: prompt answer failed with status " .. tostring(status))
+    end
+  end)
 end
 
 local showNext -- forward declaration

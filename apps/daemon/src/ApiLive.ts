@@ -41,16 +41,17 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
         const updated = yield* store.answerPrompt(payload)
         // A free-text answer to a homework check becomes a homework entry,
         // due at the next lesson of that subject (or tomorrow as fallback).
+        const answerText = payload.answer ?? null
         if (
           updated &&
           prompt !== null &&
           prompt.status === "pending" &&
           prompt.kind === "homework-check" &&
           !payload.dismissed &&
-          payload.answer !== null &&
-          payload.answer.trim().length > 0
+          answerText !== null &&
+          answerText.trim().length > 0
         ) {
-          const answer = payload.answer.trim()
+          const answer = answerText.trim()
           const now = new Date()
           const week = yield* store.weekData(toDateOnly(now))
           const upcoming = week.lessons.filter((l) => l.start > now.toISOString())
