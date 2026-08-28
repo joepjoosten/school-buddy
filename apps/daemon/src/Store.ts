@@ -66,8 +66,13 @@ const migrations = [
     teacher text,
     start text not null,
     end text not null,
-    cancelled integer not null default 0
+    cancelled integer not null default 0,
+    period_start integer,
+    period_end integer
   )`,
+  // added later; ignored when the column already exists (see migrate loop)
+  `alter table lessons add column period_start integer`,
+  `alter table lessons add column period_end integer`,
   `create table if not exists homework (
     id text primary key,
     subject text not null,
@@ -107,6 +112,8 @@ interface LessonRow {
   readonly start: string
   readonly end: string
   readonly cancelled: number
+  readonly period_start: number | null
+  readonly period_end: number | null
 }
 
 interface HomeworkRow {
@@ -139,7 +146,9 @@ const lessonFromRow = (row: LessonRow): Lesson => ({
   teacher: row.teacher,
   start: row.start,
   end: row.end,
-  cancelled: row.cancelled === 1
+  cancelled: row.cancelled === 1,
+  periodStart: row.period_start,
+  periodEnd: row.period_end
 })
 
 const homeworkFromRow = (row: HomeworkRow): HomeworkItem => ({
@@ -168,7 +177,10 @@ const makeStore = Effect.gen(function* () {
   const sql = yield* SqlClient
 
   for (const migration of migrations) {
-    yield* sql.unsafe(migration).pipe(Effect.orDie)
+    // "alter table add column" fails harmlessly when the column already exists
+    yield* sql.unsafe(migration).pipe(
+      migration.startsWith("alter table") ? Effect.ignore : Effect.orDie
+    )
   }
 
   const store: StoreShape = {
@@ -177,9 +189,9 @@ const makeStore = Effect.gen(function* () {
         yield* sql`delete from lessons where start >= ${fromDate} and start < ${toDateExclusive}`
         for (const l of lessons) {
           yield* sql`insert or replace into lessons
-            (id, subject, title, location, teacher, start, end, cancelled)
+            (id, subject, title, location, teacher, start, end, cancelled, period_start, period_end)
             values (${l.id}, ${l.subject}, ${l.title}, ${l.location}, ${l.teacher},
-                    ${l.start}, ${l.end}, ${l.cancelled ? 1 : 0})`
+                    ${l.start}, ${l.end}, ${l.cancelled ? 1 : 0}, ${l.periodStart}, ${l.periodEnd})`
         }
       }).pipe(Effect.orDie),
 

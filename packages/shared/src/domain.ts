@@ -14,7 +14,10 @@ export const Lesson = Schema.Struct({
   start: Schema.String,
   /** ISO datetime */
   end: Schema.String,
-  cancelled: Schema.Boolean
+  cancelled: Schema.Boolean,
+  /** school period numbers ("lesuur"), null when Somtoday doesn't provide them */
+  periodStart: Schema.NullOr(Schema.Number),
+  periodEnd: Schema.NullOr(Schema.Number)
 })
 export type Lesson = typeof Lesson.Type
 
@@ -137,7 +140,13 @@ export const Settings = Schema.Struct({
   /** which LLM provider to use */
   aiProvider: AiProvider,
   /** explicit model id; null = automatic (provider default when available) */
-  aiModel: Schema.NullOr(Schema.String)
+  aiModel: Schema.NullOr(Schema.String),
+  /**
+   * bell schedule ("lestijden"), one period per line: "<nr> HH:MM-HH:MM".
+   * Used for period markers on the calendar and as fallback when Somtoday
+   * doesn't provide a lesuur. Per install, so per student.
+   */
+  lestijden: Schema.String
 })
 export type Settings = typeof Settings.Type
 
@@ -147,8 +156,39 @@ export const defaultSettings: Settings = {
   quietEnd: "07:30",
   chatEnabled: true,
   aiProvider: "openrouter",
-  aiModel: null
+  aiModel: null,
+  // Dendron College, regulier rooster bovenbouw (editable in settings)
+  lestijden: [
+    "1 08:15-09:05",
+    "2 09:05-09:55",
+    "3 09:55-10:45",
+    "4 11:05-11:55",
+    "5 11:55-12:45",
+    "6 13:15-14:05",
+    "7 14:05-14:55",
+    "8 15:05-15:55",
+    "9 15:55-16:45"
+  ].join("\n")
 }
+
+export interface Period {
+  readonly number: number
+  /** "HH:MM" */
+  readonly start: string
+  readonly end: string
+}
+
+/** Parse the lestijden setting; malformed lines are skipped. */
+export const parseLestijden = (text: string): Array<Period> =>
+  text
+    .split("\n")
+    .map((line) => /^\s*(\d+)\s+(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/.exec(line))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({
+      number: Number(m[1]),
+      start: (m[2] ?? "").replace(".", ":").padStart(5, "0"),
+      end: (m[3] ?? "").replace(".", ":").padStart(5, "0")
+    }))
 
 export const AiModels = Schema.Struct({
   provider: AiProvider,

@@ -1,10 +1,11 @@
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { HomeworkItem } from "@school-buddy/shared"
+import { defaultSettings, parseLestijden } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
 import { createHomework, runEffect, setHomeworkDone } from "./api.ts"
-import { healthAtom, weekAtom } from "./atoms.ts"
+import { healthAtom, settingsAtom, weekAtom } from "./atoms.ts"
 import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
@@ -64,6 +65,10 @@ export const App = () => {
     ? Cause.pretty(weekResult.cause)
     : null
   const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
+  const settingsResult = useAtomValue(settingsAtom)
+  const periods = parseLestijden(
+    AsyncResult.isSuccess(settingsResult) ? settingsResult.value.lestijden : defaultSettings.lestijden
+  )
 
   const toggle = async (item: HomeworkItem) => {
     await runEffect(setHomeworkDone(item.id, !item.done))
@@ -119,7 +124,7 @@ export const App = () => {
       {route === "#logs" && <LogsPage />}
       {route !== "#instellingen" && route !== "#chat" && route !== "#logs" && week && (
         <main className="rooster">
-          <WeekGrid week={week} onToggle={toggle} />
+          <WeekGrid week={week} periods={periods} onToggle={toggle} />
           <AddHomework date={anchor} onAdded={refresh} />
         </main>
       )}

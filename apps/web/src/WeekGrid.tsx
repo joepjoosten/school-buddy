@@ -1,4 +1,4 @@
-import type { HomeworkItem, Lesson, WeekData } from "@school-buddy/shared"
+import type { HomeworkItem, Lesson, Period, WeekData } from "@school-buddy/shared"
 import { useEffect, useState } from "react"
 
 export const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
@@ -88,19 +88,33 @@ const HomeworkCard = ({
   </label>
 )
 
+const periodLabel = (lesson: Lesson, periods: ReadonlyArray<Period>): string | null => {
+  const start = lesson.periodStart
+  const end = lesson.periodEnd
+  if (start !== null) {
+    return end !== null && end !== start ? `${start}e-${end}e` : `${start}e`
+  }
+  // fallback: match the configured lestijden on the start time
+  const match = periods.find((p) => p.start === hhmm(lesson.start))
+  return match === undefined ? null : `${match.number}e`
+}
+
 export const WeekGrid = ({
   week,
+  periods,
   onToggle
 }: {
   week: WeekData
+  periods: ReadonlyArray<Period>
   onToggle: (item: HomeworkItem) => void
 }) => {
   const now = useNow()
   const today = localToday()
   const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
 
-  const starts = week.lessons.map((l) => minutesOf(l.start))
-  const ends = week.lessons.map((l) => minutesOf(l.end))
+  const hhmmMinutes = (t: string): number => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+  const starts = [...week.lessons.map((l) => minutesOf(l.start)), ...periods.map((p) => hhmmMinutes(p.start))]
+  const ends = [...week.lessons.map((l) => minutesOf(l.end)), ...periods.map((p) => hhmmMinutes(p.end))]
   const startHour = Math.min(MIN_START_HOUR, ...starts.map((m) => Math.floor(m / 60)))
   const endHour = Math.max(MIN_END_HOUR, ...ends.map((m) => Math.ceil(m / 60)))
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
@@ -129,6 +143,19 @@ export const WeekGrid = ({
             {hours.map((h) => (
               <div key={h} className="cal-hour" style={{ top: yOf(h * 60) }}>
                 {`${h}`.padStart(2, "0")}:00
+              </div>
+            ))}
+            {periods.map((p) => (
+              <div
+                key={p.number}
+                className="cal-period"
+                style={{
+                  top: yOf(hhmmMinutes(p.start)),
+                  height: yOf(hhmmMinutes(p.end)) - yOf(hhmmMinutes(p.start))
+                }}
+                title={`${p.number}e lesuur ${p.start}–${p.end}`}
+              >
+                {p.number}e
               </div>
             ))}
             {showNow && (
@@ -166,8 +193,11 @@ export const WeekGrid = ({
                         lesson.location ? ` (${lesson.location})` : ""
                       }`}
                     >
-                      <span className="time">
-                        {hhmm(lesson.start)}–{hhmm(lesson.end)}
+                      <span className="pill">
+                        {periodLabel(lesson, periods) !== null && (
+                          <span className="period">{periodLabel(lesson, periods)}</span>
+                        )}
+                        {hhmm(lesson.start).replace(/^0/, "")}
                       </span>
                       <span className="title">{lesson.title}</span>
                       {lesson.location !== null && lesson.location !== "" && (

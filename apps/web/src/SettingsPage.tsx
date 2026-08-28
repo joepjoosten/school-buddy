@@ -3,6 +3,7 @@ import type { School, Settings } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useRef, useState } from "react"
 import type { AiProvider as AiProviderSchema } from "@school-buddy/shared"
+import { parseLestijden } from "@school-buddy/shared"
 import {
   checkUpdate,
   connectFinish,
@@ -416,6 +417,52 @@ const UpdateSection = () => {
   )
 }
 
+const LestijdenSection = () => {
+  const settingsResult = useAtomValue(settingsAtom)
+  const refreshSettings = useAtomRefresh(settingsAtom)
+  const stored = AsyncResult.isSuccess(settingsResult) ? settingsResult.value : null
+  const [text, setText] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    if (stored !== null && text === null) setText(stored.lestijden)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stored])
+  if (stored === null || text === null) return <section><h2>Lestijden</h2><p>Laden…</p></section>
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await runEffect(saveSettings({ ...stored, lestijden: text }))
+    refreshSettings()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+  const parsed = parseLestijden(text)
+
+  return (
+    <section>
+      <h2>Lestijden</h2>
+      <p className="hint">
+        Eén lesuur per regel: <code>nummer begin-eind</code>. Somtoday geeft per les zelf het
+        lesuur door; deze tabel wordt gebruikt voor de markering op de tijdlijn en als
+        de lesuurinformatie ontbreekt. Per leerling in te stellen.
+      </p>
+      <form onSubmit={save} className="settings-form">
+        <textarea
+          rows={10}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          spellCheck={false}
+        />
+        <div className="row">
+          <button type="submit">Opslaan</button>
+          <span className="hint">{parsed.length} lesuren herkend</span>
+          {saved && <span>✅ Opgeslagen</span>}
+        </div>
+      </form>
+    </section>
+  )
+}
+
 const DebugSection = () => (
   <section>
     <h2>Debug</h2>
@@ -431,6 +478,7 @@ export const SettingsPage = () => (
     <SomtodaySection />
     <PromptsSection />
     <AiSection />
+    <LestijdenSection />
     <UpdateSection />
     <DebugSection />
   </div>

@@ -133,6 +133,7 @@ interface RestPage {
 }
 
 const asString = (v: unknown): string | null => (typeof v === "string" ? v : null)
+const asNumber = (v: unknown): number | null => (typeof v === "number" ? v : null)
 
 const asObject = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === "object" && !Array.isArray(v)
@@ -168,7 +169,9 @@ const mapAfspraak = (item: Record<string, unknown>): Lesson | null => {
     teacher: parts.length >= 3 ? (parts[parts.length - 1] ?? null) : null,
     start,
     end,
-    cancelled: false
+    cancelled: false,
+    periodStart: asNumber(item["beginLesuur"]),
+    periodEnd: asNumber(item["eindLesuur"])
   }
 }
 
