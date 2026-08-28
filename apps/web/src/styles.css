@@ -97,7 +97,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-head { border-bottom: 1px solid #e3e8f2; }
 .cal-day-head {
   padding: 0.5rem 0.4rem; font-size: 0.9rem; font-weight: 600; text-transform: capitalize;
-  border-left: 1px solid #eef1f7; text-align: center;
+  border-left: 1px solid #d5dbe8; text-align: center;
 }
 .cal-day-head small { color: #8a94ab; font-weight: 400; }
 .cal-day-head.today { color: #4f46e5; background: #dfe4ff; }
@@ -108,8 +108,8 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   font-size: 0.7rem; color: #8a94ab; font-variant-numeric: tabular-nums;
 }
 .cal-day {
-  position: relative; border-left: 1px solid #eef1f7;
-  background-image: linear-gradient(to bottom, #eef1f7 0, #eef1f7 1px, transparent 1px);
+  position: relative; border-left: 1px solid #d5dbe8;
+  background-image: linear-gradient(to bottom, #cdd4e3 0, #cdd4e3 1px, transparent 1px);
 }
 .cal-day.today { background-color: #e8ecff; }
 .cal-lesson {
@@ -144,7 +144,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   font-size: 0.7rem; color: #b45309; font-weight: 700; text-transform: uppercase;
   writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; padding: 0.5rem 0;
 }
-.hw-day { border-left: 1px solid #eef1f7; padding: 0.4rem; min-height: 3rem; }
+.hw-day { border-left: 1px solid #d5dbe8; padding: 0.4rem; min-height: 3rem; }
 .hw-day.today { background: #e8ecff; }
 .hw-day .empty { color: #c5cbd8; font-size: 0.8rem; margin: 0.2rem 0; text-align: center; }
 .homework {
