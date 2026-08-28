@@ -6,7 +6,6 @@ import {
   ChatReply,
   ConnectStartResult,
   Health,
-  HomeworkInput,
   HomeworkItem,
   LogsResponse,
   RosterChange,
@@ -53,9 +52,6 @@ export const fetchWeek = (date?: string) =>
   request(WeekData, date ? `/api/week?date=${date}` : "/api/week")
 
 export const fetchHealth = request(Health, "/api/health")
-
-export const createHomework = (input: typeof HomeworkInput.Type) =>
-  request(HomeworkItem, "/api/homework", post(input))
 
 export const setHomeworkDone = (id: string, done: boolean) =>
   request(Schema.Boolean, "/api/homework/done", post({ id, done }))

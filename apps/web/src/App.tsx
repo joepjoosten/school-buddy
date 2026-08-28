@@ -4,7 +4,7 @@ import { defaultSettings, parseLestijden } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
-import { createHomework, deleteHomework, runEffect, setHomeworkDone } from "./api.ts"
+import { deleteHomework, runEffect, setHomeworkDone } from "./api.ts"
 import { healthAtom, settingsAtom, weekAtom } from "./atoms.ts"
 import { ChangesPage } from "./ChangesPage.tsx"
 import { ChatPage } from "./ChatPage.tsx"
@@ -25,33 +25,6 @@ const useHashRoute = (): { route: string; params: URLSearchParams } => {
     route: qIndex === -1 ? hash : hash.slice(0, qIndex),
     params: new URLSearchParams(qIndex === -1 ? "" : hash.slice(qIndex + 1))
   }
-}
-
-const AddHomework = ({ date, onAdded }: { date: string; onAdded: () => void }) => {
-  const [subject, setSubject] = useState("")
-  const [dueDate, setDueDate] = useState(date)
-  const [description, setDescription] = useState("")
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!subject || !description) return
-    await runEffect(createHomework({ subject, dueDate, description, lessonId: null }))
-    setSubject("")
-    setDescription("")
-    onAdded()
-  }
-  return (
-    <form className="add-homework" onSubmit={submit}>
-      <strong>Huiswerk toevoegen</strong>
-      <input placeholder="vak" value={subject} onChange={(e) => setSubject(e.target.value)} />
-      <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-      <input
-        placeholder="wat moet je doen?"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-      <button type="submit">+</button>
-    </form>
-  )
 }
 
 export const App = () => {
@@ -131,7 +104,6 @@ export const App = () => {
       {!["#instellingen", "#chat", "#logs", "#wijzigingen"].includes(route) && week && (
         <main className="rooster">
           <WeekGrid week={week} periods={periods} onToggle={toggle} onDelete={remove} />
-          <AddHomework date={anchor} onAdded={refresh} />
         </main>
       )}
     </div>
