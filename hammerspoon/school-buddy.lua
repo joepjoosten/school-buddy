@@ -157,20 +157,40 @@ end
 
 -- --- start -----------------------------------------------------------------
 
+local function showMenu()
+  menubar:setMenu(menuItems())
+  menubar:popupMenu(hs.mouse.absolutePosition())
+  menubar:setMenu(nil)
+end
+
 function M.start()
   if menubar then
     menubar:setTitle("🎒")
-    -- no permanent menu: left click = quick chat, right click = the menu
-    menubar:setClickCallback(function()
-      local buttons = hs.eventtap.checkMouseButtons()
-      if buttons.right then
-        menubar:setMenu(menuItems())
-        menubar:popupMenu(hs.mouse.absolutePosition())
-        menubar:setMenu(nil)
+    -- No permanent menu: left click = quick chat, ctrl+click = the menu.
+    -- (The status bar only delivers LEFT clicks to this callback.)
+    menubar:setClickCallback(function(mods)
+      if mods and (mods.ctrl or mods.alt) then
+        showMenu()
       else
         quickChat()
       end
     end)
+    -- Right / two-finger clicks never reach the click callback, so catch them
+    -- with an eventtap limited to the icon's frame. Needs the Accessibility
+    -- permission Hammerspoon asks for; ctrl+click keeps working without it.
+    -- (kept on M so the tap isn't garbage-collected)
+    M.rightClickTap = hs.eventtap.new({ hs.eventtap.event.types.rightMouseDown }, function(event)
+      local frame = menubar:frame()
+      if frame == nil then return false end
+      local loc = event:location()
+      if loc.x >= frame.x and loc.x <= frame.x + frame.w
+        and loc.y >= frame.y and loc.y <= frame.y + frame.h then
+        showMenu()
+        return true
+      end
+      return false
+    end)
+    M.rightClickTap:start()
   end
   watcher:start()
   -- also poll while the lid stays open (lessons end without a sleep/wake)
