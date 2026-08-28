@@ -12,6 +12,13 @@ const localToday = (): string => {
   return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`
 }
 
+const dutchDate = (day: string): string =>
+  new Date(`${day}T12:00:00`).toLocaleDateString("nl-NL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  })
+
 const minutesLabel = (m: number): string =>
   m >= 60 ? `${Math.floor(m / 60)}u${m % 60 === 0 ? "" : ` ${m % 60}m`}` : `${m} min`
 
@@ -60,7 +67,13 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
                 <div className="plan-meta">
                   <span className="subject">{p.subject}</span>
                   <span className="duration">{minutesLabel(p.durationMinutes)}</span>
-                  <span className="due" title={p.homeworkDescription}>voor {p.dueDate.slice(8, 10)}-{p.dueDate.slice(5, 7)}</span>
+                  <a
+                    className="due"
+                    href={`#rooster?date=${p.dueDate}`}
+                    title={`${p.subject} — voor ${dutchDate(p.dueDate)}\n\n${p.homeworkDescription}\n\n(klik om die week in het rooster te openen)`}
+                  >
+                    voor {p.dueDate.slice(8, 10)}-{p.dueDate.slice(5, 7)}
+                  </a>
                   <span className="plan-actions">
                     <button type="button" title="dag eerder" onClick={() => move(p, -1)}>◀</button>
                     <button type="button" title="dag later" onClick={() => move(p, 1)}>▶</button>

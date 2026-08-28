@@ -31,6 +31,15 @@ const useHashRoute = (): { route: string; params: URLSearchParams } => {
 export const App = () => {
   const { route, params } = useHashRoute()
   const [anchor, setAnchor] = useState<string>(new Date().toISOString().slice(0, 10))
+
+  // "#rooster?date=YYYY-MM-DD" (from a planning item) opens that week
+  const requestedDate = params.get("date")
+  useEffect(() => {
+    if (route === "#rooster" && requestedDate !== null) {
+      setAnchor(requestedDate)
+      history.replaceState(null, "", "#")
+    }
+  }, [route, requestedDate])
   const weekResult = useAtomValue(weekAtom(anchor))
   const refresh = useAtomRefresh(weekAtom(anchor))
   const healthResult = useAtomValue(healthAtom)
