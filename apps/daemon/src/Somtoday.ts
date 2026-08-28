@@ -263,10 +263,14 @@ const makeSomtoday = Effect.gen(function* () {
     })
   )
 
-  const apiGet = (
+  const PAGE_SIZE = 100
+  const MAX_PAGES = 60
+
+  const apiGetPage = (
     auth: { accessToken: string; apiUrl: string },
     path: string,
-    params: Record<string, string>
+    params: Record<string, string>,
+    start: number
   ): Effect.Effect<RestPage, SomtodayError> =>
     Effect.tryPromise({
       try: async () => {
@@ -275,8 +279,9 @@ const makeSomtoday = Effect.gen(function* () {
           headers: {
             authorization: `Bearer ${auth.accessToken}`,
             accept: "application/json",
-            range: "items=0-100"
-          }
+            range: `items=${start}-${start + PAGE_SIZE - 1}`
+          },
+          signal: AbortSignal.timeout(30_000)
         })
         if (!res.ok) {
           throw new SomtodayError({
@@ -292,26 +297,43 @@ const makeSomtoday = Effect.gen(function* () {
           : new SomtodayError({ reason: "network", detail: String(e) })
     })
 
+  /** Follow the Range-header pagination until a page comes back short. */
+  const apiGetAll = (
+    auth: { accessToken: string; apiUrl: string },
+    path: string,
+    params: Record<string, string>
+  ): Effect.Effect<Array<Record<string, unknown>>, SomtodayError> =>
+    Effect.gen(function* () {
+      const all: Array<Record<string, unknown>> = []
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const result = yield* apiGetPage(auth, path, params, page * PAGE_SIZE)
+        const items = result.items ?? []
+        all.push(...items)
+        if (items.length < PAGE_SIZE) break
+      }
+      return all
+    })
+
   const sync: Effect.Effect<SyncResult, SomtodayError> = Effect.gen(function* () {
     const auth = yield* refreshAccessToken
-    // rolling window: last week's Monday until 3 weeks ahead
-    const from = toDateOnly(addDays(mondayOf(new Date()), -7))
-    const to = toDateOnly(addDays(mondayOf(new Date()), 28))
+    // rolling window: two weeks back until ~a trimester (16 weeks) ahead
+    const from = toDateOnly(addDays(mondayOf(new Date()), -14))
+    const to = toDateOnly(addDays(mondayOf(new Date()), 16 * 7))
 
-    const afspraken = yield* apiGet(auth, "afspraken", {
+    const afspraken = yield* apiGetAll(auth, "afspraken", {
       begindatum: from,
       einddatum: to,
       additional: "vak"
     })
-    const lessons = afspraken.items
+    const lessons = afspraken
       .map(mapAfspraak)
       .filter((l): l is Lesson => l !== null)
     yield* store.replaceLessons(lessons, from, to)
 
-    const huiswerk = yield* apiGet(auth, "studiewijzeritemafspraaktoekenningen", {
+    const huiswerk = yield* apiGetAll(auth, "studiewijzeritemafspraaktoekenningen", {
       begintNaOfOp: from
     })
-    const items = huiswerk.items
+    const items = huiswerk
       .map(mapHomework)
       .filter((h): h is HomeworkItem => h !== null)
     yield* store.upsertSomtodayHomework(items)
