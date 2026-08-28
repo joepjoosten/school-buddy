@@ -72,9 +72,34 @@ export const download = async (
   throw new Error("te veel redirects")
 }
 
+/**
+ * Latest tag via the website redirect (github.com/<repo>/releases/latest →
+ * /releases/tag/<tag>). Not subject to the API rate limit (60/h per IP),
+ * which the daily checks + manual checks from one network can exhaust.
+ */
+const fetchLatestTagViaRedirect = async (): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://github.com/${REPO}/releases/latest`, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(15_000)
+    })
+    const location = res.headers.get("location") ?? ""
+    const match = /\/releases\/tag\/([^/?#]+)/.exec(location)
+    return match?.[1] !== undefined ? decodeURIComponent(match[1]) : null
+  } catch {
+    return null
+  }
+}
+
 /** Latest release tag on GitHub, or null when it cannot be determined. */
-export const fetchLatestVersion = async (): Promise<string | null> =>
-  (await fetchLatestRelease())?.tag_name ?? null
+export const fetchLatestVersion = async (): Promise<string | null> => {
+  const token = await getToken()
+  if (token !== null) {
+    const viaApi = (await fetchLatestRelease())?.tag_name ?? null
+    if (viaApi !== null) return viaApi
+  }
+  return fetchLatestTagViaRedirect()
+}
 
 /**
  * Start the updater as a detached one-shot launchd job, so it survives the
@@ -104,7 +129,14 @@ export const startDetachedUpdate = (): { ok: boolean; message: string | null } =
 /** CLI: `school-buddy update [--check]` */
 export const runUpdate = async (checkOnly: boolean): Promise<void> => {
   console.log(`Huidige versie: ${VERSION}`)
-  const release = await fetchLatestRelease()
+  const token = await getToken()
+  // public repo: website redirect + direct download URL, no API calls at all
+  const release: Release | null = token !== null
+    ? await fetchLatestRelease()
+    : await (async () => {
+      const tag = await fetchLatestTagViaRedirect()
+      return tag === null ? null : { tag_name: tag, assets: [] }
+    })()
   if (release === null) {
     console.error(
       "Kan de nieuwste versie niet ophalen van GitHub.\n" +
@@ -130,24 +162,24 @@ export const runUpdate = async (checkOnly: boolean): Promise<void> => {
 
   const arch = process.arch === "arm64" ? "arm64" : "x64"
   const pkg = `school-buddy-${latest}-darwin-${arch}`
+  const directUrl = `https://github.com/${REPO}/releases/download/${latest}/${pkg}.tar.gz`
   const asset = release.assets.find((a) => a.name === `${pkg}.tar.gz`)
-  if (!asset) {
+  if (token !== null && asset === undefined) {
     console.error(`Release ${latest} heeft geen asset ${pkg}.tar.gz.`)
     process.exit(1)
   }
 
-  const token = await getToken()
   const tmp = mkdtempSync(join(tmpdir(), "school-buddy-update-"))
   const tarball = join(tmp, `${pkg}.tar.gz`)
 
-  console.log(`Downloaden: ${asset.browser_download_url}`)
+  console.log(`Downloaden: ${directUrl}`)
   // with a token, download through the API (works on private repos)
-  const res = token !== null
+  const res = token !== null && asset !== undefined
     ? await download(asset.url, {
       authorization: `Bearer ${token}`,
       accept: "application/octet-stream"
     })
-    : await download(asset.browser_download_url, {})
+    : await download(directUrl, {})
   if (!res.ok) {
     console.error(`Download mislukt (${res.status}).`)
     process.exit(1)

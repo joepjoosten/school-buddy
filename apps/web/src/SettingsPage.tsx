@@ -377,7 +377,7 @@ const UpdateSection = () => {
       const result = await runEffect(checkUpdate)
       setMessage(
         result.latest === null
-          ? "❌ Kan GitHub niet bereiken"
+          ? "❌ Kan GitHub nu niet bereiken — probeer het straks nog eens"
           : result.updateAvailable
           ? `⬆️ Nieuwe versie beschikbaar: ${result.latest}`
           : `✅ Up-to-date (${result.current})`
