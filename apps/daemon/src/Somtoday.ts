@@ -206,7 +206,8 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
     source: "somtoday",
     lessonId: null,
     done: false,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    kind: "unknown"
   }
 }
 

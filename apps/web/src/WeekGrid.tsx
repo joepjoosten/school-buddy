@@ -83,11 +83,14 @@ const HomeworkCard = ({
   onToggle: (item: HomeworkItem) => void
   onDelete: (item: HomeworkItem) => void
 }) => (
-  <div className={`homework${item.done ? " done" : ""}`}>
+  <div className={`homework${item.done ? " done" : ""}${item.kind === "reminder" ? " reminder" : ""}`}>
     <label>
       <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
       <span className="subject">{item.subject}</span>
-      <span className="desc">{item.description}</span>
+      <span className="desc">
+        {item.kind === "reminder" && <span title="meenemen — geen leertijd nodig">🎒 </span>}
+        {item.description}
+      </span>
       <span className="source" title={item.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}>
         {item.source === "somtoday" ? "S" : "✍️"}
       </span>

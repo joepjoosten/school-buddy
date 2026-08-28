@@ -6,6 +6,7 @@ import type {
   ChatStatus,
   HomeworkInput,
   HomeworkItem,
+  HomeworkKind,
   PlanItemInput,
   Lesson,
   Settings
@@ -56,6 +57,8 @@ export interface AiShape {
     readonly self: HomeworkItem
     readonly somtoday: HomeworkItem
   }) => Effect.Effect<"same" | "different" | "unsure">
+  /** Decide whether a homework item is real work, a reminder, or just info. */
+  readonly classifyHomework: (homework: HomeworkItem) => Effect.Effect<HomeworkKind>
   /**
    * Propose plan sessions for a homework item. `question` is set when the
    * model wants to ask the student first; items are then empty.
@@ -449,6 +452,42 @@ Geef same=true als het (vrijwel zeker) dezelfde opdracht is, met een confidence 
       return verdict.same ? ("same" as const) : ("different" as const)
     })
 
+  const Classification = Schema.Struct({
+    kind: Schema.Literals(["task", "reminder", "info"]),
+    confidence: Schema.Number
+  })
+
+  const classifyHomework: AiShape["classifyHomework"] = (homework) =>
+    Effect.gen(function* () {
+      const settings = yield* store.getSettings
+      if (!settings.chatEnabled) return "unknown" as const
+      const apiKey = yield* providerKey(settings.aiProvider)
+      if (apiKey === null) return "unknown" as const
+      const model = yield* resolveModel(settings)
+      const run = LanguageModel.generateObject({
+        objectName: "classificatie",
+        schema: Classification,
+        prompt: `Beoordeel wat voor soort huiswerk dit is voor een scholier.
+
+Vak: "${homework.subject}", voor ${homework.dueDate}: "${homework.description}"
+
+- "task": echt werk waar de leerling tijd voor moet inplannen (opgaven maken, lezen, leren voor een toets, verslag/PO schrijven, presentatie voorbereiden).
+- "reminder": alleen iets meenemen, meebrengen, klaarleggen of inleveren van iets dat al af is (bv. "boek meenemen", "schrift meenemen", "gymkleren", "laptop opladen"). Hier hoeft geen leertijd voor ingepland te worden.
+- "info": geen opdracht, bv. een mededeling of les-informatie.
+
+Let op: een omschrijving met zowel werk als meenemen is "task".`
+      })
+      const result = yield* run.pipe(
+        Effect.provide(providerLayer(settings.aiProvider, model, apiKey)),
+        Effect.map((r) => r.value),
+        Effect.catchCause((cause) =>
+          Effect.logWarning(`classifyHomework failed: ${cause}`).pipe(Effect.map(() => null))
+        )
+      )
+      if (result === null || result.confidence < 0.6) return "unknown" as const
+      return result.kind
+    })
+
   const PlanProposal = Schema.Struct({
     items: Schema.Array(Schema.Struct({
       day: Schema.String,
@@ -554,7 +593,16 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       }
     })
 
-  const shape: AiShape = { chat, interpretHomework, judgeSameHomework, planHomework, status, models, history }
+  const shape: AiShape = {
+    chat,
+    interpretHomework,
+    judgeSameHomework,
+    classifyHomework,
+    planHomework,
+    status,
+    models,
+    history
+  }
   return shape
 })
 

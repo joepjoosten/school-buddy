@@ -4,6 +4,16 @@ import { Ai } from "./Ai.ts"
 import { Store } from "./Store.ts"
 import { addDays, parseDateOnly, toDateOnly } from "./time.ts"
 
+const REMINDER = /^\s*(boek|boeken|schrift|schriften|map|gymkleren|laptop|rekenmachine|atlas|woordenboek|materiaal)\b|\bmee ?nemen\b|\bmeebrengen\b|\bklaarleggen\b|\bbij je hebben\b/i
+const WORK = /\bmaken\b|\blezen\b|\bleren\b|\bschrijven\b|opgav|oefen|toets|so\b|proefwerk|verslag|presentatie|samenvatting|po\b/i
+
+/** Rule-based classification, used when AI is unavailable or unsure. */
+export const classifyByRules = (h: HomeworkItem): "task" | "reminder" => {
+  if (WORK.test(h.description)) return "task"
+  if (REMINDER.test(h.description)) return "reminder"
+  return "task"
+}
+
 const isTest = (h: HomeworkItem): boolean =>
   /\[TOETS\]|\btoets|\bso\b|proefwerk|overhoring|tentamen/i.test(h.description)
 
@@ -78,9 +88,29 @@ export const planHomework = (homework: HomeworkItem): Effect.Effect<PlanOutcome,
     return "asked" as const
   })
 
+/**
+ * Decide for each new homework item whether it needs planning at all;
+ * reminders ("boek meenemen") and info are recorded but never get sessions.
+ */
+export const classifyNewHomework: Effect.Effect<number, never, Store | Ai> = Effect.gen(function* () {
+  const store = yield* Store
+  const ai = yield* Ai
+  const items = yield* store.unclassifiedHomework
+  let classified = 0
+  for (const item of items) {
+    const viaAi = yield* ai.classifyHomework(item)
+    const kind = viaAi === "unknown" ? classifyByRules(item) : viaAi
+    yield* store.setHomeworkKind(item.id, kind)
+    if (kind !== "task") yield* store.setPlanningStatus(item.id, "skipped")
+    classified++
+  }
+  return classified
+})
+
 /** Plan everything that has no planning status yet. */
 export const planUnplannedHomework: Effect.Effect<number, never, Store | Ai> = Effect.gen(function* () {
   const store = yield* Store
+  yield* classifyNewHomework
   const items = yield* store.unplannedHomework(toDateOnly(new Date()))
   let planned = 0
   for (const item of items) {

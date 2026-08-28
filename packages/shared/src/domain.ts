@@ -24,6 +24,15 @@ export type Lesson = typeof Lesson.Type
 // --- Homework -------------------------------------------------------------
 
 export const HomeworkSource = Schema.Literals(["somtoday", "self"])
+
+/**
+ * What kind of homework this is, decided once when it appears:
+ * - task: real work that deserves study sessions
+ * - reminder: bring/hand in something ("boek meenemen") — no sessions
+ * - info: not actionable homework at all
+ */
+export const HomeworkKind = Schema.Literals(["task", "reminder", "info", "unknown"])
+export type HomeworkKind = typeof HomeworkKind.Type
 export type HomeworkSource = typeof HomeworkSource.Type
 
 export const HomeworkItem = Schema.Struct({
@@ -36,7 +45,8 @@ export const HomeworkItem = Schema.Struct({
   lessonId: Schema.NullOr(Schema.String),
   done: Schema.Boolean,
   /** ISO datetime */
-  createdAt: Schema.String
+  createdAt: Schema.String,
+  kind: HomeworkKind
 })
 export type HomeworkItem = typeof HomeworkItem.Type
 

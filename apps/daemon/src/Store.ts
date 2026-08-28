@@ -2,6 +2,7 @@ import type {
   ChatMessage,
   HomeworkInput,
   HomeworkItem,
+  HomeworkKind,
   HomeworkSource,
   Lesson,
   PlanItem,
@@ -95,6 +96,9 @@ export interface StoreShape {
   readonly setPlan: (homeworkId: string, items: ReadonlyArray<PlanItemInput>) => Effect.Effect<Array<PlanItem>>
   readonly setPlanItemDone: (id: string, done: boolean) => Effect.Effect<boolean>
   readonly movePlanItem: (id: string, day: string) => Effect.Effect<boolean>
+  readonly setHomeworkKind: (id: string, kind: HomeworkKind) => Effect.Effect<void>
+  /** homework whose kind hasn't been decided yet (open, not deleted) */
+  readonly unclassifiedHomework: Effect.Effect<Array<HomeworkItem>>
   readonly setPlanningStatus: (homeworkId: string, status: "planned" | "asked" | "skipped") => Effect.Effect<void>
   /** open, not-deleted homework due on/after fromDate without a planning status */
   readonly unplannedHomework: (fromDate: string) => Effect.Effect<Array<HomeworkItem>>
@@ -151,6 +155,7 @@ const migrations = [
     value text not null
   )`,
   `alter table homework add column deleted integer not null default 0`,
+  `alter table homework add column kind text not null default 'unknown'`,
   `create table if not exists plan_items (
     id text primary key,
     homework_id text not null,
@@ -218,6 +223,7 @@ interface PlanItemRow {
   readonly title: string
   readonly done: number
   readonly created_at: string
+  readonly kind: string | null
 }
 
 const planItemFromRow = (row: PlanItemRow): PlanItem => ({
@@ -281,6 +287,7 @@ interface HomeworkRow {
   readonly lesson_id: string | null
   readonly done: number
   readonly created_at: string
+  readonly kind: string | null
 }
 
 interface PromptRow {
@@ -315,7 +322,8 @@ const homeworkFromRow = (row: HomeworkRow): HomeworkItem => ({
   source: row.source as HomeworkItem["source"],
   lessonId: row.lesson_id,
   done: row.done === 1,
-  createdAt: row.created_at
+  createdAt: row.created_at,
+  kind: (row.kind ?? "unknown") as HomeworkKind
 })
 
 const promptFromRow = (row: PromptRow): Prompt => ({
@@ -459,12 +467,13 @@ const makeStore = Effect.gen(function* () {
           source,
           lessonId: input.lessonId,
           done: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          kind: "unknown"
         }
         yield* sql`insert into homework
-          (id, subject, due_date, description, source, lesson_id, done, created_at)
+          (id, subject, due_date, description, source, lesson_id, done, created_at, kind)
           values (${item.id}, ${item.subject}, ${item.dueDate}, ${item.description},
-                  ${item.source}, ${item.lessonId}, 0, ${item.createdAt})`
+                  ${item.source}, ${item.lessonId}, 0, ${item.createdAt}, 'unknown')`
         return item
       }).pipe(Effect.orDie),
 
@@ -727,6 +736,17 @@ const makeStore = Effect.gen(function* () {
         Effect.orDie
       ),
 
+    setHomeworkKind: (id, kind) =>
+      sql`update homework set kind = ${kind} where id = ${id}`.pipe(Effect.asVoid, Effect.orDie),
+
+    unclassifiedHomework: sql<HomeworkRow>`
+      select * from homework
+      where deleted = 0 and done = 0 and (kind is null or kind = 'unknown')
+      order by due_date asc`.pipe(
+      Effect.map((rows) => rows.map(homeworkFromRow)),
+      Effect.orDie
+    ),
+
     setPlanningStatus: (homeworkId, status) =>
       sql`insert into homework_planning (homework_id, status, at)
         values (${homeworkId}, ${status}, ${new Date().toISOString()})
@@ -736,7 +756,7 @@ const makeStore = Effect.gen(function* () {
     unplannedHomework: (fromDate) =>
       sql<HomeworkRow>`
         select h.* from homework h
-        where h.deleted = 0 and h.done = 0 and h.due_date >= ${fromDate}
+        where h.deleted = 0 and h.done = 0 and h.due_date >= ${fromDate} and h.kind = 'task' 
           and not exists (select 1 from homework_planning s where s.homework_id = h.id)
         order by h.due_date asc`.pipe(
         Effect.map((rows) => rows.map(homeworkFromRow)),
