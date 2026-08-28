@@ -356,11 +356,22 @@ const UpdateSection = () => {
   )
 }
 
+const DebugSection = () => (
+  <section>
+    <h2>Debug</h2>
+    <p>
+      <a href="#logs">🪵 Bekijk daemon-logs</a> — of in de terminal:{" "}
+      <code>school-buddy logs --tail</code>
+    </p>
+  </section>
+)
+
 export const SettingsPage = () => (
   <div className="settings-page">
     <SomtodaySection />
     <PromptsSection />
     <AiSection />
     <UpdateSection />
+    <DebugSection />
   </div>
 )

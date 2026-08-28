@@ -7,6 +7,7 @@ import {
   Health,
   HomeworkInput,
   HomeworkItem,
+  LogsResponse,
   School,
   Settings,
   WeekData
@@ -79,6 +80,9 @@ export const setAiKey = (provider: typeof AiProvider.Type, key: string) =>
   request(ActionResult, "/api/settings/ai-key", post({ provider, key }))
 
 export const fetchAiModels = request(AiModels, "/api/ai/models")
+
+export const fetchLogs = (minutes: number) =>
+  request(LogsResponse, `/api/logs?minutes=${minutes}`)
 
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>

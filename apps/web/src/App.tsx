@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { createHomework, runEffect, setHomeworkDone } from "./api.ts"
 import { healthAtom, weekAtom } from "./atoms.ts"
 import { ChatPage } from "./ChatPage.tsx"
+import { LogsPage } from "./LogsPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
 
 const useHashRoute = (): string => {
@@ -178,7 +179,8 @@ export const App = () => {
       {error !== null && <p className="error">Kan de daemon niet bereiken: {error}</p>}
       {route === "#instellingen" && <SettingsPage />}
       {route === "#chat" && <ChatPage />}
-      {route !== "#instellingen" && route !== "#chat" && week && (
+      {route === "#logs" && <LogsPage />}
+      {route !== "#instellingen" && route !== "#chat" && route !== "#logs" && week && (
         <main>
           <div className="week">
             {DAY_NAMES.map((name, i) => (

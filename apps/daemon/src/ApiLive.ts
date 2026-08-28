@@ -5,6 +5,7 @@ import { Ai, PROVIDERS } from "./Ai.ts"
 import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
+import { collectRecentLogs } from "./logs.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { toDateOnly } from "./time.ts"
@@ -117,6 +118,13 @@ const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
 const AiApiLive = HttpApiBuilder.group(Api, "ai", (handlers) =>
   handlers.handle("models", () => Ai.pipe(Effect.flatMap((ai) => ai.models))))
 
+const LogsApiLive = HttpApiBuilder.group(Api, "logs", (handlers) =>
+  handlers.handle("recent", ({ query }) =>
+    Effect.promise(() => {
+      const minutes = Math.min(1440, Math.max(1, Number(query.minutes ?? "5") || 5))
+      return collectRecentLogs(minutes)
+    }).pipe(Effect.map(({ file, lines }) => ({ file, lines })))))
+
 const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
   handlers
     .handle("schools", ({ query }) =>
@@ -183,6 +191,7 @@ export const ApiLive = HttpApiBuilder.layer(Api).pipe(
     SettingsLive,
     SomtodayApiLive,
     AiApiLive,
+    LogsApiLive,
     HealthLive
   ])
 )

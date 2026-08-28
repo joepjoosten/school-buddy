@@ -179,6 +179,14 @@ export const ActionResult = Schema.Struct({
 })
 export type ActionResult = typeof ActionResult.Type
 
+// --- Debug logs -----------------------------------------------------------
+
+export const LogsResponse = Schema.Struct({
+  file: Schema.String,
+  lines: Schema.Array(Schema.String)
+})
+export type LogsResponse = typeof LogsResponse.Type
+
 // --- Health ---------------------------------------------------------------
 
 export const ChatStatus = Schema.Literals(["ready", "no-key", "disabled"])

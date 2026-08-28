@@ -21,12 +21,12 @@ const lineTimestamp = (line: string, now: Date): number | null => {
   return d.getTime()
 }
 
-export const showLogs = async (minutes: number, tail: boolean): Promise<void> => {
+/** Lines from the daemon log within the last `minutes`, oldest first. */
+export const collectRecentLogs = async (
+  minutes: number
+): Promise<{ file: string; exists: boolean; lines: Array<string> }> => {
   const file = Bun.file(LOG_FILE)
-  if (!(await file.exists())) {
-    console.error(`Geen logbestand gevonden (${LOG_FILE}). Draait de daemon via launchd?`)
-    process.exit(1)
-  }
+  if (!(await file.exists())) return { file: LOG_FILE, exists: false, lines: [] }
 
   // only read the tail of a large log
   const size = file.size
@@ -37,26 +37,33 @@ export const showLogs = async (minutes: number, tail: boolean): Promise<void> =>
   const cutoff = now.getTime() - minutes * 60_000
 
   let include = false
-  let shown = 0
+  const lines: Array<string> = []
   for (const line of text.split("\n")) {
     const ts = lineTimestamp(line, now)
     // continuation lines (no timestamp) belong to the previous entry
     if (ts !== null) include = ts >= cutoff
-    if (include && line.length > 0) {
-      console.log(line)
-      shown++
-    }
+    if (include && line.length > 0) lines.push(line)
   }
+  return { file: LOG_FILE, exists: true, lines }
+}
 
-  if (shown === 0 && !tail) {
-    console.log(`Geen logregels in de laatste ${minutes} minuten (${LOG_FILE}).`)
+export const showLogs = async (minutes: number, tail: boolean): Promise<void> => {
+  const result = await collectRecentLogs(minutes)
+  if (!result.exists) {
+    console.error(`Geen logbestand gevonden (${result.file}). Draait de daemon via launchd?`)
+    process.exit(1)
+  }
+  for (const line of result.lines) console.log(line)
+
+  if (result.lines.length === 0 && !tail) {
+    console.log(`Geen logregels in de laatste ${minutes} minuten (${result.file}).`)
   }
 
   if (!tail) return
 
   // follow mode: keep printing whatever gets appended (Ctrl-C to stop)
   console.log(`--- volgen van ${LOG_FILE} (Ctrl-C om te stoppen) ---`)
-  let offset = size
+  let offset = Bun.file(LOG_FILE).size
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 1000))
     const current = Bun.file(LOG_FILE)

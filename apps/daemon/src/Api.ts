@@ -6,6 +6,7 @@ import {
   ChatRequest,
   ConnectStartResult,
   Health,
+  LogsResponse,
   HomeworkInput,
   HomeworkItem,
   Prompt,
@@ -83,6 +84,13 @@ const ai = HttpApiGroup.make("ai").add(
   })
 )
 
+const logs = HttpApiGroup.make("logs").add(
+  HttpApiEndpoint.get("recent", "/api/logs", {
+    query: { minutes: Schema.optional(Schema.String) },
+    success: LogsResponse
+  })
+)
+
 const somtoday = HttpApiGroup.make("somtoday").add(
   HttpApiEndpoint.get("schools", "/api/somtoday/schools", {
     query: { q: Schema.String },
@@ -116,5 +124,6 @@ export const Api = HttpApi.make("school-buddy").add(
   settings,
   somtoday,
   ai,
+  logs,
   health
 )
