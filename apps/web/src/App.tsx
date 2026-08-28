@@ -165,16 +165,22 @@ export const App = () => {
     refresh()
   }
 
+  // week navigation always lands on the rooster view, also from settings
+  const navigate = (update: (anchor: string) => string) => {
+    setAnchor(update)
+    if (route === "#instellingen") window.location.hash = ""
+  }
+
   return (
     <div className="app">
       <header>
         <h1>🎒 School Buddy</h1>
         <nav>
-          <button onClick={() => setAnchor((a) => addDays(a, -7))}>← vorige</button>
-          <button onClick={() => setAnchor(new Date().toISOString().slice(0, 10))}>
+          <button onClick={() => navigate((a) => addDays(a, -7))}>← vorige</button>
+          <button onClick={() => navigate(() => new Date().toISOString().slice(0, 10))}>
             vandaag
           </button>
-          <button onClick={() => setAnchor((a) => addDays(a, 7))}>volgende →</button>
+          <button onClick={() => navigate((a) => addDays(a, 7))}>volgende →</button>
         </nav>
         {week && (
           <span className="weeklabel">
