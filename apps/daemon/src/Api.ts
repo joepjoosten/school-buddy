@@ -42,6 +42,10 @@ const homework = HttpApiGroup.make("homework").add(
   HttpApiEndpoint.post("setDone", "/api/homework/done", {
     payload: Schema.Struct({ id: Schema.String, done: Schema.Boolean }),
     success: Schema.Boolean
+  }),
+  HttpApiEndpoint.post("remove", "/api/homework/delete", {
+    payload: Schema.Struct({ id: Schema.String }),
+    success: Schema.Boolean
   })
 )
 

@@ -53,6 +53,10 @@ export interface StoreShape {
   ) => Effect.Effect<HomeworkItem>
   readonly upsertSomtodayHomework: (items: ReadonlyArray<HomeworkItem>) => Effect.Effect<void>
   readonly setHomeworkDone: (id: string, done: boolean) => Effect.Effect<boolean>
+  /** soft delete, so Somtoday-sourced items don't come back on the next sync */
+  readonly deleteHomework: (id: string) => Effect.Effect<boolean>
+  /** not-done, not-deleted homework due in [fromDate, toDateExclusive), oldest first */
+  readonly openHomework: (fromDate: string, toDateExclusive: string) => Effect.Effect<Array<HomeworkItem>>
   readonly hasHomeworkForLesson: (lessonId: string) => Effect.Effect<boolean>
   readonly pendingPrompts: Effect.Effect<Array<Prompt>>
   readonly createPrompt: (options: {
@@ -122,6 +126,7 @@ const migrations = [
     key text primary key,
     value text not null
   )`,
+  `alter table homework add column deleted integer not null default 0`,
   `create table if not exists chat_messages (
     id text primary key,
     role text not null,
@@ -338,7 +343,7 @@ const makeStore = Effect.gen(function* () {
           order by start asc`
         const homeworkRows = yield* sql<HomeworkRow>`
           select * from homework
-          where due_date >= ${bounds.monday} and due_date < ${bounds.nextMonday}
+          where due_date >= ${bounds.monday} and due_date < ${bounds.nextMonday} and deleted = 0
           order by due_date asc, subject asc`
         return {
           year: bounds.year,
@@ -409,14 +414,42 @@ const makeStore = Effect.gen(function* () {
       }).pipe(Effect.orDie),
 
     setHomeworkDone: (id, done) =>
-      sql`update homework set done = ${done ? 1 : 0} where id = ${id}`.pipe(
-        Effect.map(() => true),
+      sql<{ readonly n: number }>`
+        select count(*) as n from homework where id = ${id} and deleted = 0`.pipe(
+        Effect.flatMap((rows) =>
+          (rows[0]?.n ?? 0) === 0
+            ? Effect.succeed(false)
+            : sql`update homework set done = ${done ? 1 : 0} where id = ${id}`.pipe(
+              Effect.map(() => true)
+            )
+        ),
+        Effect.orDie
+      ),
+
+    deleteHomework: (id) =>
+      sql<{ readonly n: number }>`
+        select count(*) as n from homework where id = ${id} and deleted = 0`.pipe(
+        Effect.flatMap((rows) =>
+          (rows[0]?.n ?? 0) === 0
+            ? Effect.succeed(false)
+            : sql`update homework set deleted = 1 where id = ${id}`.pipe(Effect.map(() => true))
+        ),
+        Effect.orDie
+      ),
+
+    openHomework: (fromDate, toDateExclusive) =>
+      sql<HomeworkRow>`
+        select * from homework
+        where due_date >= ${fromDate} and due_date < ${toDateExclusive}
+          and done = 0 and deleted = 0
+        order by due_date asc, subject asc`.pipe(
+        Effect.map((rows) => rows.map(homeworkFromRow)),
         Effect.orDie
       ),
 
     hasHomeworkForLesson: (lessonId) =>
       sql<{ readonly n: number }>`
-        select count(*) as n from homework where lesson_id = ${lessonId}`.pipe(
+        select count(*) as n from homework where lesson_id = ${lessonId} and deleted = 0`.pipe(
         Effect.map((rows) => (rows[0]?.n ?? 0) > 0),
         Effect.orDie
       ),

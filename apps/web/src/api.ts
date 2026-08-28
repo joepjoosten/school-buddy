@@ -60,6 +60,9 @@ export const createHomework = (input: typeof HomeworkInput.Type) =>
 export const setHomeworkDone = (id: string, done: boolean) =>
   request(Schema.Boolean, "/api/homework/done", post({ id, done }))
 
+export const deleteHomework = (id: string) =>
+  request(Schema.Boolean, "/api/homework/delete", post({ id }))
+
 export const sendChat = (message: string) =>
   request(ChatReply, "/api/chat", post({ message }))
 

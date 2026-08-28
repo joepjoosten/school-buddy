@@ -18,7 +18,7 @@ import { Chat, LanguageModel, Tool, Toolkit } from "effect/unstable/ai"
 import { FetchHttpClient } from "effect/unstable/http"
 import { keychainGet } from "./Keychain.ts"
 import { Store } from "./Store.ts"
-import { toDateOnly } from "./time.ts"
+import { addDays, toDateOnly } from "./time.ts"
 
 export const PROVIDERS: Record<
   AiProvider,
@@ -64,7 +64,8 @@ const chatSystemPrompt = (summary: string | null): string =>
   `Je bent School Buddy 🎒, het maatje van een middelbare scholier op zijn laptop.
 Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk uitleggen (als een tutor).
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
-Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen of huiswerk toe te voegen; verzin nooit roostergegevens.
+Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen, en om huiswerk toe te voegen, af te vinken of te verwijderen; verzin nooit roostergegevens.
+Gebruik huiswerk_openstaand om de juiste id's te vinden voordat je afvinkt of verwijdert.
 Vandaag is ${toDateOnly(new Date())}.${
     summary === null
       ? ""
@@ -106,6 +107,22 @@ const makeAi = Effect.gen(function* () {
         description: Schema.String
       }),
       success: Schema.String
+    }),
+    Tool.make("huiswerk_openstaand", {
+      description:
+        "Lijst van openstaand (nog niet afgevinkt) huiswerk met hun id's, van vandaag tot 3 weken vooruit.",
+      success: Schema.String
+    }),
+    Tool.make("huiswerk_afvinken", {
+      description: "Markeert een huiswerkitem als gedaan (done=true) of weer als open (done=false).",
+      parameters: Schema.Struct({ id: Schema.String, done: Schema.Boolean }),
+      success: Schema.String
+    }),
+    Tool.make("huiswerk_verwijderen", {
+      description:
+        "Verwijdert een huiswerkitem. Alleen gebruiken als de leerling daar duidelijk om vraagt.",
+      parameters: Schema.Struct({ id: Schema.String }),
+      success: Schema.String
     })
   )
 
@@ -125,7 +142,31 @@ const makeAi = Effect.gen(function* () {
     huiswerk_toevoegen: (input) =>
       store
         .createHomework({ ...input, lessonId: null }, "self")
-        .pipe(Effect.map((item) => `Toegevoegd: ${item.subject} — ${item.dueDate}`))
+        .pipe(Effect.map((item) => `Toegevoegd (id ${item.id}): ${item.subject} — ${item.dueDate}`)),
+    huiswerk_openstaand: () =>
+      store
+        .openHomework(toDateOnly(new Date()), toDateOnly(addDays(new Date(), 21)))
+        .pipe(
+          Effect.map((items) =>
+            items.length === 0
+              ? "Geen openstaand huiswerk."
+              : items
+                .map((h) => `${h.dueDate} ${h.subject}: ${h.description} (id ${h.id})`)
+                .join("\n")
+          )
+        ),
+    huiswerk_afvinken: ({ id, done }) =>
+      store
+        .setHomeworkDone(id, done)
+        .pipe(
+          Effect.map((ok) =>
+            ok ? (done ? "Afgevinkt ✅" : "Weer open gezet") : "Geen huiswerk met dat id gevonden."
+          )
+        ),
+    huiswerk_verwijderen: ({ id }) =>
+      store
+        .deleteHomework(id)
+        .pipe(Effect.map((ok) => (ok ? "Verwijderd 🗑️" : "Geen huiswerk met dat id gevonden.")))
   })
 
   const providerLayer = (provider: AiProvider, model: string, apiKey: string) =>

@@ -4,7 +4,7 @@ import { defaultSettings, parseLestijden } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
-import { createHomework, runEffect, setHomeworkDone } from "./api.ts"
+import { createHomework, deleteHomework, runEffect, setHomeworkDone } from "./api.ts"
 import { healthAtom, settingsAtom, weekAtom } from "./atoms.ts"
 import { ChangesPage } from "./ChangesPage.tsx"
 import { ChatPage } from "./ChatPage.tsx"
@@ -75,6 +75,10 @@ export const App = () => {
     await runEffect(setHomeworkDone(item.id, !item.done))
     refresh()
   }
+  const remove = async (item: HomeworkItem) => {
+    await runEffect(deleteHomework(item.id))
+    refresh()
+  }
 
   // week navigation always lands on the rooster view, also from other pages
   const navigate = (update: (anchor: string) => string) => {
@@ -126,7 +130,7 @@ export const App = () => {
       {route === "#wijzigingen" && <ChangesPage />}
       {!["#instellingen", "#chat", "#logs", "#wijzigingen"].includes(route) && week && (
         <main className="rooster">
-          <WeekGrid week={week} periods={periods} onToggle={toggle} />
+          <WeekGrid week={week} periods={periods} onToggle={toggle} onDelete={remove} />
           <AddHomework date={anchor} onAdded={refresh} />
         </main>
       )}

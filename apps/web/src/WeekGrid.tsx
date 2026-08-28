@@ -76,16 +76,30 @@ const useNow = (): Date => {
 
 const HomeworkCard = ({
   item,
-  onToggle
+  onToggle,
+  onDelete
 }: {
   item: HomeworkItem
   onToggle: (item: HomeworkItem) => void
+  onDelete: (item: HomeworkItem) => void
 }) => (
-  <label className={`homework${item.done ? " done" : ""}`}>
-    <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
-    <span className="subject">{item.subject}</span>
-    <span className="desc">{item.description}</span>
-  </label>
+  <div className={`homework${item.done ? " done" : ""}`}>
+    <label>
+      <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
+      <span className="subject">{item.subject}</span>
+      <span className="desc">{item.description}</span>
+    </label>
+    <button
+      type="button"
+      className="hw-delete"
+      title="Verwijderen"
+      onClick={() => {
+        if (window.confirm(`"${item.description}" verwijderen?`)) onDelete(item)
+      }}
+    >
+      ✕
+    </button>
+  </div>
 )
 
 const periodLabel = (lesson: Lesson, periods: ReadonlyArray<Period>): string | null => {
@@ -102,11 +116,13 @@ const periodLabel = (lesson: Lesson, periods: ReadonlyArray<Period>): string | n
 export const WeekGrid = ({
   week,
   periods,
-  onToggle
+  onToggle,
+  onDelete
 }: {
   week: WeekData
   periods: ReadonlyArray<Period>
   onToggle: (item: HomeworkItem) => void
+  onDelete: (item: HomeworkItem) => void
 }) => {
   const now = useNow()
   const today = localToday()
@@ -225,7 +241,7 @@ export const WeekGrid = ({
             <div key={d.date} className={`hw-day${d.date === today ? " today" : ""}`}>
               {items.length === 0 && <p className="empty">—</p>}
               {items.map((h) => (
-                <HomeworkCard key={h.id} item={h} onToggle={onToggle} />
+                <HomeworkCard key={h.id} item={h} onToggle={onToggle} onDelete={onDelete} />
               ))}
             </div>
           )

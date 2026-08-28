@@ -38,7 +38,9 @@ const HomeworkLive = HttpApiBuilder.group(Api, "homework", (handlers) =>
       Effect.gen(function* () {
         const store = yield* Store
         return yield* store.setHomeworkDone(payload.id, payload.done)
-      })))
+      }))
+    .handle("remove", ({ payload }) =>
+      Store.pipe(Effect.flatMap((store) => store.deleteHomework(payload.id)))))
 
 const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
   handlers

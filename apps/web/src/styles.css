@@ -173,6 +173,13 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   display: flex; gap: 0.35rem; align-items: baseline; background: #fff7ed;
   border-radius: 8px; padding: 0.3rem 0.45rem; margin-bottom: 0.3rem; font-size: 0.8rem;
 }
+.homework label { display: flex; gap: 0.35rem; align-items: baseline; flex: 1; cursor: pointer; }
+.hw-delete {
+  border: 0; background: transparent; color: #b45309; padding: 0 0.2rem; font-size: 0.8rem;
+  opacity: 0; cursor: pointer;
+}
+.homework:hover .hw-delete { opacity: 0.7; }
+.hw-delete:hover { opacity: 1; background: transparent; }
 .homework.done { opacity: 0.5; }
 .homework.done .desc { text-decoration: line-through; }
 .homework .subject { font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
