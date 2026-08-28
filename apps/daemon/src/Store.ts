@@ -52,6 +52,16 @@ export interface StoreShape {
     source: HomeworkSource
   ) => Effect.Effect<HomeworkItem>
   readonly upsertSomtodayHomework: (items: ReadonlyArray<HomeworkItem>) => Effect.Effect<void>
+  readonly getHomework: (id: string) => Effect.Effect<HomeworkItem | null>
+  /** self-entered + Somtoday items that may describe the same assignment, not judged yet */
+  readonly dedupCandidates: Effect.Effect<Array<{ self: HomeworkItem; somtoday: HomeworkItem }>>
+  readonly recordDedupVerdict: (
+    selfId: string,
+    somtodayId: string,
+    verdict: "same" | "different" | "asked"
+  ) => Effect.Effect<void>
+  /** keep the Somtoday item (inheriting done), soft-delete the self-entered one */
+  readonly mergeHomework: (selfId: string, somtodayId: string) => Effect.Effect<boolean>
   readonly setHomeworkDone: (id: string, done: boolean) => Effect.Effect<boolean>
   /** soft delete, so Somtoday-sourced items don't come back on the next sync */
   readonly deleteHomework: (id: string) => Effect.Effect<boolean>
@@ -127,6 +137,13 @@ const migrations = [
     value text not null
   )`,
   `alter table homework add column deleted integer not null default 0`,
+  `create table if not exists homework_dedup (
+    self_id text not null,
+    somtoday_id text not null,
+    verdict text not null,
+    at text not null,
+    primary key (self_id, somtoday_id)
+  )`,
   `create table if not exists chat_messages (
     id text primary key,
     role text not null,
@@ -411,6 +428,52 @@ const makeStore = Effect.gen(function* () {
               description = excluded.description,
               lesson_id = excluded.lesson_id`
         }
+      }).pipe(Effect.orDie),
+
+    getHomework: (id) =>
+      sql<HomeworkRow>`select * from homework where id = ${id} and deleted = 0`.pipe(
+        Effect.map((rows) => (rows[0] ? homeworkFromRow(rows[0]) : null)),
+        Effect.orDie
+      ),
+
+    dedupCandidates: Effect.gen(function* () {
+      const rows = yield* sql<{ readonly self_id: string; readonly somtoday_id: string }>`
+        select s.id as self_id, t.id as somtoday_id
+        from homework s
+        join homework t
+          on t.source = 'somtoday' and t.deleted = 0
+         and abs(julianday(t.due_date) - julianday(s.due_date)) <= 3
+        where s.source = 'self' and s.deleted = 0
+          and s.due_date >= date('now', '-7 days')
+          and not exists (
+            select 1 from homework_dedup d where d.self_id = s.id and d.somtoday_id = t.id
+          )`
+      const pairs: Array<{ self: HomeworkItem; somtoday: HomeworkItem }> = []
+      for (const row of rows) {
+        const self = yield* store.getHomework(row.self_id)
+        const somtoday = yield* store.getHomework(row.somtoday_id)
+        if (self !== null && somtoday !== null) pairs.push({ self, somtoday })
+      }
+      return pairs
+    }).pipe(Effect.orDie),
+
+    recordDedupVerdict: (selfId, somtodayId, verdict) =>
+      sql`insert into homework_dedup (self_id, somtoday_id, verdict, at)
+        values (${selfId}, ${somtodayId}, ${verdict}, ${new Date().toISOString()})
+        on conflict(self_id, somtoday_id) do update set verdict = excluded.verdict, at = excluded.at`
+        .pipe(Effect.asVoid, Effect.orDie),
+
+    mergeHomework: (selfId, somtodayId) =>
+      Effect.gen(function* () {
+        const self = yield* store.getHomework(selfId)
+        const somtoday = yield* store.getHomework(somtodayId)
+        if (self === null || somtoday === null) return false
+        if (self.done && !somtoday.done) {
+          yield* sql`update homework set done = 1 where id = ${somtodayId}`
+        }
+        yield* sql`update homework set deleted = 1 where id = ${selfId}`
+        yield* store.recordDedupVerdict(selfId, somtodayId, "same")
+        return true
       }).pipe(Effect.orDie),
 
     setHomeworkDone: (id, done) =>

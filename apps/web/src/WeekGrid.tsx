@@ -88,6 +88,9 @@ const HomeworkCard = ({
       <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
       <span className="subject">{item.subject}</span>
       <span className="desc">{item.description}</span>
+      <span className="source" title={item.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}>
+        {item.source === "somtoday" ? "S" : "✍️"}
+      </span>
     </label>
     <button
       type="button"

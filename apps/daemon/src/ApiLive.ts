@@ -5,6 +5,7 @@ import { Ai, PROVIDERS } from "./Ai.ts"
 import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
+import { dedupHomework } from "./HomeworkDedup.ts"
 import { collectRecentLogs } from "./logs.ts"
 import { fetchLatestVersion, startDetachedUpdate } from "./update.ts"
 import { Somtoday } from "./Somtoday.ts"
@@ -178,6 +179,7 @@ const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
       Effect.gen(function* () {
         const somtoday = yield* Somtoday
         return yield* somtoday.sync.pipe(
+          Effect.tap(() => dedupHomework),
           Effect.map((result) => ({
             ok: true,
             message:

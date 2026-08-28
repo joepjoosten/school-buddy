@@ -5,6 +5,7 @@ import type {
   ChatHistory,
   ChatStatus,
   HomeworkInput,
+  HomeworkItem,
   Lesson,
   Settings
 } from "@school-buddy/shared"
@@ -49,6 +50,11 @@ export interface AiShape {
     readonly subject: string | null
     readonly upcoming: ReadonlyArray<Lesson>
   }) => Effect.Effect<HomeworkInput | null>
+  /** Is a self-entered item the same assignment as a Somtoday item? */
+  readonly judgeSameHomework: (options: {
+    readonly self: HomeworkItem
+    readonly somtoday: HomeworkItem
+  }) => Effect.Effect<"same" | "different" | "unsure">
   readonly status: Effect.Effect<ChatStatus>
   /** Persisted transcript (recent messages) + rolling summary of earlier days. */
   readonly history: Effect.Effect<ChatHistory>
@@ -66,6 +72,7 @@ Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk 
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
 Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen, en om huiswerk toe te voegen, af te vinken of te verwijderen; verzin nooit roostergegevens.
 Gebruik huiswerk_openstaand om de juiste id's te vinden voordat je afvinkt of verwijdert.
+Als je eerder in dit gesprek vroeg of twee huiswerkitems hetzelfde zijn en de leerling antwoordt: gebruik huiswerk_samenvoegen bij "ja" en huiswerk_apart_houden bij "nee" (de id's staan in je vraag).
 Vandaag is ${toDateOnly(new Date())}.${
     summary === null
       ? ""
@@ -118,6 +125,18 @@ const makeAi = Effect.gen(function* () {
       parameters: Schema.Struct({ id: Schema.String, done: Schema.Boolean }),
       success: Schema.String
     }),
+    Tool.make("huiswerk_samenvoegen", {
+      description:
+        "Voegt dubbel huiswerk samen: de zelf ingevoerde versie (selfId) verdwijnt, de Somtoday-versie (somtodayId) blijft. Gebruik dit als de leerling bevestigt dat het hetzelfde huiswerk is.",
+      parameters: Schema.Struct({ selfId: Schema.String, somtodayId: Schema.String }),
+      success: Schema.String
+    }),
+    Tool.make("huiswerk_apart_houden", {
+      description:
+        "Markeert dat een zelf ingevoerd item (selfId) en een Somtoday-item (somtodayId) NIET hetzelfde huiswerk zijn, zodat er niet opnieuw naar gevraagd wordt.",
+      parameters: Schema.Struct({ selfId: Schema.String, somtodayId: Schema.String }),
+      success: Schema.String
+    }),
     Tool.make("huiswerk_verwijderen", {
       description:
         "Verwijdert een huiswerkitem. Alleen gebruiken als de leerling daar duidelijk om vraagt.",
@@ -163,6 +182,14 @@ const makeAi = Effect.gen(function* () {
             ok ? (done ? "Afgevinkt ✅" : "Weer open gezet") : "Geen huiswerk met dat id gevonden."
           )
         ),
+    huiswerk_samenvoegen: ({ selfId, somtodayId }) =>
+      store
+        .mergeHomework(selfId, somtodayId)
+        .pipe(Effect.map((ok) => (ok ? "Samengevoegd — alleen de Somtoday-versie blijft." : "Een van de id's bestaat niet (meer)."))),
+    huiswerk_apart_houden: ({ selfId, somtodayId }) =>
+      store
+        .recordDedupVerdict(selfId, somtodayId, "different")
+        .pipe(Effect.map(() => "Genoteerd: dit zijn twee verschillende opdrachten.")),
     huiswerk_verwijderen: ({ id }) =>
       store
         .deleteHomework(id)
@@ -310,6 +337,41 @@ ${previous === null ? "" : `Eerdere samenvatting:\n${previous}\n\n`}Nieuw gespre
       )
     })
 
+  const SameHomework = Schema.Struct({
+    same: Schema.Boolean,
+    /** 0..1 */
+    confidence: Schema.Number
+  })
+
+  const judgeSameHomework: AiShape["judgeSameHomework"] = ({ self, somtoday }) =>
+    Effect.gen(function* () {
+      const settings = yield* store.getSettings
+      if (!settings.chatEnabled) return "unsure" as const
+      const apiKey = yield* providerKey(settings.aiProvider)
+      if (apiKey === null) return "unsure" as const
+      const model = yield* resolveModel(settings)
+      const run = LanguageModel.generateObject({
+        objectName: "vergelijking",
+        schema: SameHomework,
+        prompt: `Een leerling voerde zelf huiswerk in, en Somtoday (het schoolsysteem) heeft ook een huiswerkitem.
+Beoordeel of dit dezelfde opdracht is. Vakcodes kunnen afwijken (bv. "wi" vs "wisb"), en de leerling schrijft korter of slordiger dan de docent.
+
+Zelf ingevoerd: vak "${self.subject}", datum ${self.dueDate}: "${self.description}"
+Somtoday:       vak "${somtoday.subject}", datum ${somtoday.dueDate}: "${somtoday.description}"
+
+Geef same=true als het (vrijwel zeker) dezelfde opdracht is, met een confidence tussen 0 en 1.`
+      })
+      const verdict = yield* run.pipe(
+        Effect.provide(providerLayer(settings.aiProvider, model, apiKey)),
+        Effect.map((r) => r.value),
+        Effect.catchCause((cause) =>
+          Effect.logWarning(`judgeSameHomework failed: ${cause}`).pipe(Effect.map(() => null))
+        )
+      )
+      if (verdict === null || verdict.confidence < 0.7) return "unsure" as const
+      return verdict.same ? ("same" as const) : ("different" as const)
+    })
+
   const history: Effect.Effect<ChatHistory> = Effect.gen(function* () {
     const summary = yield* store.getMeta(CHAT_SUMMARY_KEY)
     const messages = yield* store.recentChatMessages(200)
@@ -359,7 +421,7 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       }
     })
 
-  const shape: AiShape = { chat, interpretHomework, status, models, history }
+  const shape: AiShape = { chat, interpretHomework, judgeSameHomework, status, models, history }
   return shape
 })
 

@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Schedule from "effect/Schedule"
 import { planHomeworkPrompts } from "./Buddy.ts"
+import { dedupHomework } from "./HomeworkDedup.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { addDays, toDateOnly } from "./time.ts"
@@ -40,7 +41,12 @@ const syncJob = Effect.gen(function* () {
         `somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk, ${r.changes} wijzigingen`
       ).pipe(
         Effect.andThen(store.setMeta(AUTH_FAILS_KEY, "0")),
-        Effect.andThen(notifyRosterChanges)
+        Effect.andThen(notifyRosterChanges),
+        Effect.andThen(
+          dedupHomework.pipe(
+            Effect.tap((n) => (n > 0 ? Effect.log(`merged ${n} duplicate homework item(s)`) : Effect.void))
+          )
+        )
       )
     ),
     Effect.catchTag("SomtodayError", (error) =>
