@@ -65,7 +65,7 @@ const updateCheckJob = Effect.gen(function* () {
     kind: "info",
     text:
       `Er is een nieuwe versie van School Buddy (${latest}). ` +
-      `Installeer hem via het 🎒-menu → "Update installeren".`
+      `Installeer hem via ⚙️ Instellingen → Versie.`
   })
   yield* store.setMeta("update.prompted", latest)
 })
