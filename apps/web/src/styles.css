@@ -122,22 +122,21 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 }
 .cal-day.today { background-color: #e8ecff; }
 .cal-lesson {
-  position: absolute; box-sizing: border-box; overflow: hidden;
+  position: absolute; box-sizing: border-box; overflow: hidden; display: block;
   background: #c7d2fe; border: 1px solid #a5b4fc; border-left: 3px solid #4f46e5;
   border-radius: 6px; box-shadow: 0 1px 2px rgba(30, 41, 59, 0.15);
-  padding: 0.2rem 0.35rem; font-size: 0.72rem; line-height: 1.25;
-  display: flex; flex-direction: column;
+  padding: 0.15rem 0.3rem; font-size: 0.66rem; line-height: 1.2;
 }
 .cal-lesson .pill {
-  align-self: flex-start; display: inline-flex; gap: 0.3em; align-items: baseline;
-  background: #3730a3; color: #fff; border-radius: 999px; padding: 0.05em 0.5em;
-  font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 0.15rem;
+  float: right; margin: 0 0 0.1rem 0.3rem; display: inline-flex; gap: 0.25em; align-items: baseline;
+  background: #3730a3; color: #fff; border-radius: 999px; padding: 0.05em 0.45em;
+  font-size: 0.6rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .cal-lesson .pill .period { font-weight: 500; opacity: 0.85; }
-.cal-lesson.compact .pill { margin-bottom: 0; }
-.cal-lesson .title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-lesson .loc { color: #4b5563; }
-.cal-lesson.compact { padding: 0.05rem 0.3rem; flex-direction: row; gap: 0.3rem; align-items: center; }
+.cal-lesson .title { font-weight: 500; }
+.cal-lesson .loc { display: block; color: #4b5563; clear: none; }
+.cal-lesson.compact { padding: 0.05rem 0.3rem; white-space: nowrap; }
+.cal-lesson.compact .title { overflow: hidden; text-overflow: ellipsis; display: block; }
 .cal-lesson.compact .loc { display: none; }
 .cal-lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
 .cal-now {
