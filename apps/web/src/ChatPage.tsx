@@ -3,6 +3,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useRef, useState } from "react"
 import { runEffect, sendChat } from "./api.ts"
 import { chatMessagesAtom, healthAtom } from "./atoms.ts"
+import { Markdown } from "./Markdown.tsx"
 
 export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null }) => {
   const [messages, setMessages] = useAtom(chatMessagesAtom)
@@ -67,7 +68,7 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
         )}
         {messages.map((m, i) => (
           <div key={i} className={`bubble ${m.who}`}>
-            {m.text}
+            {m.who === "buddy" ? <Markdown text={m.text} /> : m.text}
           </div>
         ))}
         {busy && <div className="bubble buddy typing">…</div>}

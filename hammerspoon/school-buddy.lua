@@ -142,15 +142,24 @@ end
 
 local function quickChat()
   local chooser
-  chooser = hs.chooser.new(function(_)
-    local q = chooser:query()
-    if q ~= nil and q:match("%S") then
-      hs.urlevent.openURL(DAEMON .. "/#chat?q=" .. hs.http.encodeForQuery(q))
+  chooser = hs.chooser.new(function(choice)
+    -- Enter selects the mirrored row, which carries the typed question;
+    -- an empty choices list would make Enter do nothing (delayed dismiss)
+    if choice ~= nil and choice.question ~= nil and choice.question:match("%S") then
+      hs.urlevent.openURL(DAEMON .. "/#chat?q=" .. hs.http.encodeForQuery(choice.question))
     end
   end)
   chooser:placeholderText("Vraag je buddy iets… (Enter om te sturen)")
-  chooser:choices({})
-  chooser:rows(0)
+  chooser:queryChangedCallback(function(query)
+    if query:match("%S") then
+      chooser:choices({
+        { text = query, subText = "Druk Enter om dit aan je buddy te vragen", question = query }
+      })
+    else
+      chooser:choices({})
+    end
+  end)
+  chooser:rows(1)
   chooser:width(30)
   chooser:show()
 end
