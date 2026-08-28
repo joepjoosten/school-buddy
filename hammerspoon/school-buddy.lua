@@ -12,13 +12,25 @@ local JSON_HEADERS = { ["Content-Type"] = "application/json" }
 local promptQueue = {}
 local showing = false
 
+-- hs.json.encode only accepts tables, so scalars are escaped by hand
+local function jsonString(str)
+  local escaped = str:gsub('[%c"\\]', function(c)
+    if c == '"' then return '\\"'
+    elseif c == '\\' then return '\\\\'
+    elseif c == '\n' then return '\\n'
+    elseif c == '\r' then return '\\r'
+    elseif c == '\t' then return '\\t'
+    else return string.format('\\u%04x', c:byte()) end
+  end)
+  return '"' .. escaped .. '"'
+end
+
 local function postAnswer(id, answer, dismissed)
-  -- note: a nil `answer` disappears from a Lua table, so hs.json.encode would
-  -- drop the key entirely; encode with an explicit JSON null instead
-  local answerJson = answer ~= nil and hs.json.encode(answer) or "null"
   local body = string.format(
     '{"id":%s,"answer":%s,"dismissed":%s}',
-    hs.json.encode(id), answerJson, tostring(dismissed)
+    jsonString(id),
+    answer ~= nil and jsonString(answer) or "null",
+    tostring(dismissed)
   )
   hs.http.asyncPost(DAEMON .. "/api/prompts/answer", body, JSON_HEADERS, function(status)
     if status < 200 or status >= 300 then
