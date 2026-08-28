@@ -10,10 +10,3 @@ export const settingsAtom = Atom.make(fetchSettings)
 
 export const aiModelsAtom = Atom.make(fetchAiModels)
 
-export interface ChatMessage {
-  readonly who: "jij" | "buddy"
-  readonly text: string
-}
-
-/** chat transcript, kept across route switches (browser-session lifetime) */
-export const chatMessagesAtom = Atom.make<ReadonlyArray<ChatMessage>>([])

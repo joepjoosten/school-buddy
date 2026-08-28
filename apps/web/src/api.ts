@@ -2,6 +2,7 @@ import {
   ActionResult,
   AiModels,
   AiProvider,
+  ChatHistory,
   ChatReply,
   ConnectStartResult,
   Health,
@@ -61,6 +62,8 @@ export const setHomeworkDone = (id: string, done: boolean) =>
 
 export const sendChat = (message: string) =>
   request(ChatReply, "/api/chat", post({ message }))
+
+export const fetchChatHistory = request(ChatHistory, "/api/chat/history")
 
 export const fetchSettings = request(Settings, "/api/settings")
 

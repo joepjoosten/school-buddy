@@ -1,4 +1,5 @@
 import type {
+  ChatMessage,
   HomeworkInput,
   HomeworkItem,
   HomeworkSource,
@@ -65,6 +66,12 @@ export interface StoreShape {
   readonly recordSignal: (signal: Signal) => Effect.Effect<void>
   readonly getMeta: (key: string) => Effect.Effect<string | null>
   readonly setMeta: (key: string, value: string) => Effect.Effect<void>
+  readonly addChatMessage: (role: ChatMessage["role"], content: string) => Effect.Effect<ChatMessage>
+  /** most recent messages for display, oldest first */
+  readonly recentChatMessages: (limit: number) => Effect.Effect<Array<ChatMessage>>
+  /** messages not yet folded into the rolling summary, oldest first */
+  readonly uncompactedChatMessages: Effect.Effect<Array<ChatMessage>>
+  readonly markChatCompacted: (beforeIso: string) => Effect.Effect<void>
   readonly getSettings: Effect.Effect<Settings>
   readonly setSettings: (settings: Settings) => Effect.Effect<Settings>
 }
@@ -115,6 +122,13 @@ const migrations = [
     key text primary key,
     value text not null
   )`,
+  `create table if not exists chat_messages (
+    id text primary key,
+    role text not null,
+    content text not null,
+    created_at text not null,
+    compacted integer not null default 0
+  )`,
   `create table if not exists roster_changes (
     id text primary key,
     detected_at text not null,
@@ -128,6 +142,20 @@ const migrations = [
     notified integer not null default 0
   )`
 ]
+
+interface ChatMessageRow {
+  readonly id: string
+  readonly role: string
+  readonly content: string
+  readonly created_at: string
+}
+
+const chatMessageFromRow = (row: ChatMessageRow): ChatMessage => ({
+  id: row.id,
+  role: row.role as ChatMessage["role"],
+  content: row.content,
+  createdAt: row.created_at
+})
 
 interface RosterChangeRow {
   readonly id: string
@@ -447,6 +475,40 @@ const makeStore = Effect.gen(function* () {
     setMeta: (key, value) =>
       sql`insert into meta (key, value) values (${key}, ${value})
         on conflict(key) do update set value = excluded.value`.pipe(Effect.orDie),
+
+    addChatMessage: (role, content) =>
+      Effect.gen(function* () {
+        const message: ChatMessage = {
+          id: crypto.randomUUID(),
+          role,
+          content,
+          createdAt: new Date().toISOString()
+        }
+        yield* sql`insert into chat_messages (id, role, content, created_at, compacted)
+          values (${message.id}, ${message.role}, ${message.content}, ${message.createdAt}, 0)`
+        return message
+      }).pipe(Effect.orDie),
+
+    recentChatMessages: (limit) =>
+      sql<ChatMessageRow>`
+        select id, role, content, created_at from chat_messages
+        order by created_at desc limit ${limit}`.pipe(
+        Effect.map((rows) => rows.map(chatMessageFromRow).reverse()),
+        Effect.orDie
+      ),
+
+    uncompactedChatMessages: sql<ChatMessageRow>`
+      select id, role, content, created_at from chat_messages
+      where compacted = 0 order by created_at asc`.pipe(
+      Effect.map((rows) => rows.map(chatMessageFromRow)),
+      Effect.orDie
+    ),
+
+    markChatCompacted: (beforeIso) =>
+      sql`update chat_messages set compacted = 1 where created_at < ${beforeIso}`.pipe(
+        Effect.asVoid,
+        Effect.orDie
+      ),
 
     getSettings: sql<{ readonly value: string }>`
       select value from meta where key = 'settings'`.pipe(

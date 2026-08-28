@@ -2,6 +2,7 @@ import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import type {
   AiModels,
   AiProvider,
+  ChatHistory,
   ChatStatus,
   HomeworkInput,
   Lesson,
@@ -49,18 +50,29 @@ export interface AiShape {
     readonly upcoming: ReadonlyArray<Lesson>
   }) => Effect.Effect<HomeworkInput | null>
   readonly status: Effect.Effect<ChatStatus>
+  /** Persisted transcript (recent messages) + rolling summary of earlier days. */
+  readonly history: Effect.Effect<ChatHistory>
   /** Available models for the configured provider + the model auto-resolution. */
   readonly models: Effect.Effect<AiModels>
 }
 
 export class Ai extends Context.Service<Ai, AiShape>()("app/Ai") {}
 
-const chatSystemPrompt = (): string =>
+const CHAT_SUMMARY_KEY = "chat.summary"
+
+const chatSystemPrompt = (summary: string | null): string =>
   `Je bent School Buddy 🎒, het maatje van een middelbare scholier op zijn laptop.
 Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk uitleggen (als een tutor).
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
 Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen of huiswerk toe te voegen; verzin nooit roostergegevens.
-Vandaag is ${toDateOnly(new Date())}.`
+Vandaag is ${toDateOnly(new Date())}.${
+    summary === null
+      ? ""
+      : `
+
+Samenvatting van eerdere gesprekken (voor context, verwijs er alleen naar als het relevant is):
+${summary}`
+  }`
 
 const InterpretedHomework = Schema.Struct({
   /** vak-afkorting, bv. "wi", "biol"; null als onbekend */
@@ -73,11 +85,6 @@ const InterpretedHomework = Schema.Struct({
 
 const makeAi = Effect.gen(function* () {
   const store = yield* Store
-
-  // rolling conversation history for the daemon's lifetime
-  const chatSession = yield* Chat.fromPrompt([
-    { role: "system", content: chatSystemPrompt() }
-  ])
 
   const toolkit = Toolkit.make(
     Tool.make("rooster_week", {
@@ -190,6 +197,31 @@ const makeAi = Effect.gen(function* () {
     return key === null ? ("no-key" as const) : ("ready" as const)
   })
 
+  /**
+   * Fold every message from before today into the rolling summary, so the
+   * model keeps the gist of earlier days without the full transcript.
+   */
+  const compactIfNewDay = Effect.gen(function* () {
+    const pending = yield* store.uncompactedChatMessages
+    const todayStart = `${toDateOnly(new Date())}T00:00:00`
+    const older = pending.filter((m) => m.createdAt.localeCompare(todayStart) < 0)
+    if (older.length === 0) return
+    const previous = yield* store.getMeta(CHAT_SUMMARY_KEY)
+    const transcript = older
+      .map((m) => `${m.role === "user" ? "Leerling" : "Buddy"}: ${m.content}`)
+      .join("\n")
+    const response = yield* LanguageModel.generateText({
+      prompt: `Je beheert het geheugen van School Buddy, een chatmaatje voor een scholier.
+Maak één beknopte samenvatting (max. 12 zinnen, Nederlands) van wat de leerling en de buddy bespraken:
+vragen, afspraken, huiswerk, voorkeuren en lopende onderwerpen. Laat details weg die niet meer relevant zijn.
+${previous === null ? "" : `Eerdere samenvatting:\n${previous}\n\n`}Nieuw gesprek:\n${transcript}`
+    })
+    const summary = response.text.trim()
+    if (summary !== "") yield* store.setMeta(CHAT_SUMMARY_KEY, summary)
+    const cutoff = older[older.length - 1]!.createdAt
+    yield* store.markChatCompacted(cutoff + "\u0000")
+  })
+
   const chat = (message: string): Effect.Effect<string> =>
     Effect.gen(function* () {
       const settings = yield* store.getSettings
@@ -203,13 +235,26 @@ const makeAi = Effect.gen(function* () {
       const model = yield* resolveModel(settings)
 
       const run = Effect.gen(function* () {
+        yield* compactIfNewDay.pipe(
+          Effect.catchCause((cause) => Effect.logWarning(`chat compaction failed: ${cause}`))
+        )
+        const summary = yield* store.getMeta(CHAT_SUMMARY_KEY)
+        const today = yield* store.uncompactedChatMessages
+        // rebuild the session from persisted history: system + today's turns
+        const session = yield* Chat.fromPrompt([
+          { role: "system", content: chatSystemPrompt(summary) },
+          ...today.map((m) => ({ role: m.role, content: m.content }))
+        ])
         const tools = yield* toolkit.pipe(Effect.provide(handlers))
-        let response = yield* chatSession.generateText({ prompt: message, toolkit: tools })
+        let response = yield* session.generateText({ prompt: message, toolkit: tools })
         // after tool calls the model may need another round for its final answer
         for (let i = 0; i < 3 && response.text.trim() === ""; i++) {
-          response = yield* chatSession.generateText({ prompt: [], toolkit: tools })
+          response = yield* session.generateText({ prompt: [], toolkit: tools })
         }
-        return response.text.trim()
+        const reply = response.text.trim()
+        yield* store.addChatMessage("user", message)
+        yield* store.addChatMessage("assistant", reply)
+        return reply
       })
 
       return yield* run.pipe(
@@ -223,6 +268,12 @@ const makeAi = Effect.gen(function* () {
         )
       )
     })
+
+  const history: Effect.Effect<ChatHistory> = Effect.gen(function* () {
+    const summary = yield* store.getMeta(CHAT_SUMMARY_KEY)
+    const messages = yield* store.recentChatMessages(200)
+    return { summary, messages }
+  })
 
   const interpretHomework: AiShape["interpretHomework"] = ({ answer, subject, upcoming }) =>
     Effect.gen(function* () {
@@ -267,7 +318,7 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       }
     })
 
-  const shape: AiShape = { chat, interpretHomework, status, models }
+  const shape: AiShape = { chat, interpretHomework, status, models, history }
   return shape
 })
 

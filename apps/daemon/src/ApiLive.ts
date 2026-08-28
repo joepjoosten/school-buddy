@@ -99,12 +99,14 @@ const SignalsLive = HttpApiBuilder.group(Api, "signals", (handlers) =>
   handlers.handle("emit", ({ payload }) => onSignal(payload)))
 
 const ChatLive = HttpApiBuilder.group(Api, "chat", (handlers) =>
-  handlers.handle("send", ({ payload }) =>
-    Effect.gen(function* () {
-      const ai = yield* Ai
-      const reply = yield* ai.chat(payload.message)
-      return { reply }
-    })))
+  handlers
+    .handle("send", ({ payload }) =>
+      Effect.gen(function* () {
+        const ai = yield* Ai
+        const reply = yield* ai.chat(payload.message)
+        return { reply }
+      }))
+    .handle("history", () => Ai.pipe(Effect.flatMap((ai) => ai.history))))
 
 const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
   handlers

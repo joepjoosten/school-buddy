@@ -52,6 +52,13 @@ button:hover { background: #e8edf7; }
 .md a { color: #4f46e5; }
 .md .md-heading { margin-top: 0.5em; }
 .bubble.typing { color: #8a94ab; }
+.chat-entry { display: flex; flex-direction: column; gap: 0.5rem; }
+.chat-day {
+  align-self: center; font-size: 0.72rem; color: #8a94ab; text-transform: capitalize;
+  background: #f4f6fb; border-radius: 999px; padding: 0.1rem 0.7rem; margin: 0.3rem 0;
+}
+.chat-summary { font-size: 0.85rem; background: #f8f9fe; border: 1px dashed #c6cede; border-radius: 10px; padding: 0.4rem 0.7rem; }
+.chat-summary summary { cursor: pointer; color: #4a5670; }
 .chat-input { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 .chat-input input {
   flex: 1; border: 1px solid #c6cede; border-radius: 10px; padding: 0.55rem 0.8rem; font-size: 0.95rem;

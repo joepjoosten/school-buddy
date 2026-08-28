@@ -2,6 +2,7 @@ import {
   ActionResult,
   AiModels,
   AiProvider,
+  ChatHistory,
   ChatReply,
   ChatRequest,
   ConnectStartResult,
@@ -66,6 +67,9 @@ const chat = HttpApiGroup.make("chat").add(
   HttpApiEndpoint.post("send", "/api/chat", {
     payload: ChatRequest,
     success: ChatReply
+  }),
+  HttpApiEndpoint.get("history", "/api/chat/history", {
+    success: ChatHistory
   })
 )
 

@@ -116,6 +116,23 @@ export type ChatRequest = typeof ChatRequest.Type
 export const ChatReply = Schema.Struct({
   reply: Schema.String
 })
+
+export const ChatMessage = Schema.Struct({
+  id: Schema.String,
+  role: Schema.Literals(["user", "assistant"]),
+  content: Schema.String,
+  /** ISO datetime */
+  createdAt: Schema.String
+})
+export type ChatMessage = typeof ChatMessage.Type
+
+export const ChatHistory = Schema.Struct({
+  /** rolling summary of conversations from earlier days (null when none yet) */
+  summary: Schema.NullOr(Schema.String),
+  /** recent messages, oldest first */
+  messages: Schema.Array(ChatMessage)
+})
+export type ChatHistory = typeof ChatHistory.Type
 export type ChatReply = typeof ChatReply.Type
 
 // --- Settings -------------------------------------------------------------
