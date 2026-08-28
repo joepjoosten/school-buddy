@@ -309,9 +309,22 @@ ${previous === null ? "" : `Eerdere samenvatting:\n${previous}\n\n`}Nieuw gespre
         const summary = yield* store.getMeta(CHAT_SUMMARY_KEY)
         const today = yield* store.uncompactedChatMessages
         // rebuild the session from persisted history: system + today's turns
+        // Historical assistant turns need an item id: the OpenAI encoder emits
+        // `id: null` otherwise, which OpenRouter's Responses validator rejects.
         const session = yield* Chat.fromPrompt([
           { role: "system", content: chatSystemPrompt(summary) },
-          ...today.map((m) => ({ role: m.role, content: m.content }))
+          ...today.map((m) =>
+            m.role === "assistant"
+              ? {
+                role: "assistant" as const,
+                content: [{
+                  type: "text" as const,
+                  text: m.content,
+                  options: { openai: { itemId: `msg_${m.id.replace(/-/g, "")}` } }
+                }]
+              }
+              : { role: "user" as const, content: m.content }
+          )
         ])
         const tools = yield* toolkit.pipe(Effect.provide(handlers))
         let response = yield* session.generateText({ prompt: message, toolkit: tools })
