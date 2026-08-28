@@ -4,23 +4,20 @@ import { useEffect, useRef, useState } from "react"
 import { runEffect, sendChat } from "./api.ts"
 import { chatMessagesAtom, healthAtom } from "./atoms.ts"
 
-export const ChatPage = () => {
+export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null }) => {
   const [messages, setMessages] = useAtom(chatMessagesAtom)
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const healthResult = useAtomValue(healthAtom)
   const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
   const bottomRef = useRef<HTMLDivElement>(null)
+  const consumedInitial = useRef(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, busy])
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const message = input.trim()
-    if (message === "" || busy) return
-    setInput("")
+  const ask = async (message: string) => {
     setMessages((m) => [...m, { who: "jij", text: message }])
     setBusy(true)
     try {
@@ -31,6 +28,25 @@ export const ChatPage = () => {
     } finally {
       setBusy(false)
     }
+  }
+
+  // a question arriving via #chat?q=... (menu bar quick chat) is sent once
+  useEffect(() => {
+    const question = initialQuestion?.trim()
+    if (question !== undefined && question !== "" && !consumedInitial.current) {
+      consumedInitial.current = true
+      history.replaceState(null, "", "#chat")
+      void ask(question)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const message = input.trim()
+    if (message === "" || busy) return
+    setInput("")
+    await ask(message)
   }
 
   return (

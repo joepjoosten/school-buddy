@@ -9,14 +9,19 @@ import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
 
-const useHashRoute = (): string => {
+/** Hash routing with query support: "#chat?q=..." → route "#chat" + params. */
+const useHashRoute = (): { route: string; params: URLSearchParams } => {
   const [hash, setHash] = useState(window.location.hash)
   useEffect(() => {
     const onChange = () => setHash(window.location.hash)
     window.addEventListener("hashchange", onChange)
     return () => window.removeEventListener("hashchange", onChange)
   }, [])
-  return hash
+  const qIndex = hash.indexOf("?")
+  return {
+    route: qIndex === -1 ? hash : hash.slice(0, qIndex),
+    params: new URLSearchParams(qIndex === -1 ? "" : hash.slice(qIndex + 1))
+  }
 }
 
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
@@ -116,7 +121,7 @@ const AddHomework = ({ date, onAdded }: { date: string; onAdded: () => void }) =
 }
 
 export const App = () => {
-  const route = useHashRoute()
+  const { route, params } = useHashRoute()
   const [anchor, setAnchor] = useState<string>(new Date().toISOString().slice(0, 10))
   const weekResult = useAtomValue(weekAtom(anchor))
   const refresh = useAtomRefresh(weekAtom(anchor))
@@ -178,7 +183,7 @@ export const App = () => {
       </header>
       {error !== null && <p className="error">Kan de daemon niet bereiken: {error}</p>}
       {route === "#instellingen" && <SettingsPage />}
-      {route === "#chat" && <ChatPage />}
+      {route === "#chat" && <ChatPage initialQuestion={params.get("q")} />}
       {route === "#logs" && <LogsPage />}
       {route !== "#instellingen" && route !== "#chat" && route !== "#logs" && week && (
         <main>

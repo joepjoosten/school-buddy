@@ -155,12 +155,39 @@ local function menuItems()
   }
 end
 
+-- --- quick chat (left click on the menu bar icon) ---------------------------
+
+local function quickChat()
+  local chooser
+  chooser = hs.chooser.new(function(_)
+    local q = chooser:query()
+    if q ~= nil and q:match("%S") then
+      hs.urlevent.openURL(DAEMON .. "/#chat?q=" .. hs.http.encodeForQuery(q))
+    end
+  end)
+  chooser:placeholderText("Vraag je buddy iets… (Enter om te sturen)")
+  chooser:choices({})
+  chooser:rows(0)
+  chooser:width(30)
+  chooser:show()
+end
+
 -- --- start -----------------------------------------------------------------
 
 function M.start()
   if menubar then
     menubar:setTitle("🎒")
-    menubar:setMenu(menuItems)
+    -- no permanent menu: left click = quick chat, right click = the menu
+    menubar:setClickCallback(function()
+      local buttons = hs.eventtap.checkMouseButtons()
+      if buttons.right then
+        menubar:setMenu(menuItems())
+        menubar:popupMenu(hs.mouse.absolutePosition())
+        menubar:setMenu(nil)
+      else
+        quickChat()
+      end
+    end)
   end
   watcher:start()
   -- also poll while the lid stays open (lessons end without a sleep/wake)
