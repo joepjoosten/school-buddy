@@ -1,5 +1,5 @@
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
-import type { HomeworkItem, Lesson, WeekData } from "@school-buddy/shared"
+import type { HomeworkItem } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
@@ -8,6 +8,7 @@ import { healthAtom, weekAtom } from "./atoms.ts"
 import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
+import { addDays, WeekGrid } from "./WeekGrid.tsx"
 
 /** Hash routing with query support: "#chat?q=..." → route "#chat" + params. */
 const useHashRoute = (): { route: string; params: URLSearchParams } => {
@@ -22,75 +23,6 @@ const useHashRoute = (): { route: string; params: URLSearchParams } => {
     route: qIndex === -1 ? hash : hash.slice(0, qIndex),
     params: new URLSearchParams(qIndex === -1 ? "" : hash.slice(qIndex + 1))
   }
-}
-
-const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
-
-const addDays = (dateOnly: string, days: number): string => {
-  const d = new Date(`${dateOnly}T12:00:00`)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
-const hhmm = (iso: string): string => iso.slice(11, 16)
-
-const LessonCard = ({ lesson }: { lesson: Lesson }) => (
-  <div className={`lesson${lesson.cancelled ? " cancelled" : ""}`}>
-    <span className="time">
-      {hhmm(lesson.start)}–{hhmm(lesson.end)}
-    </span>
-    <span className="title">{lesson.title}</span>
-    {lesson.location !== null && <span className="loc">{lesson.location}</span>}
-  </div>
-)
-
-const HomeworkCard = ({
-  item,
-  onToggle
-}: {
-  item: HomeworkItem
-  onToggle: (item: HomeworkItem) => void
-}) => (
-  <label className={`homework${item.done ? " done" : ""}`}>
-    <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
-    <span className="subject">{item.subject}</span>
-    <span className="desc">{item.description}</span>
-  </label>
-)
-
-const DayColumn = ({
-  date,
-  name,
-  week,
-  onToggle
-}: {
-  date: string
-  name: string
-  week: WeekData
-  onToggle: (item: HomeworkItem) => void
-}) => {
-  const lessons = week.lessons.filter((l) => l.start.slice(0, 10) === date)
-  const homework = week.homework.filter((h) => h.dueDate === date)
-  const isToday = date === new Date().toISOString().slice(0, 10)
-  return (
-    <div className={`day${isToday ? " today" : ""}`}>
-      <h3>
-        {name} <small>{date.slice(8, 10)}-{date.slice(5, 7)}</small>
-      </h3>
-      {lessons.length === 0 && <p className="empty">geen lessen</p>}
-      {lessons.map((l) => (
-        <LessonCard key={l.id} lesson={l} />
-      ))}
-      {homework.length > 0 && (
-        <div className="homework-list">
-          <h4>huiswerk</h4>
-          {homework.map((h) => (
-            <HomeworkCard key={h.id} item={h} onToggle={onToggle} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
 }
 
 const AddHomework = ({ date, onAdded }: { date: string; onAdded: () => void }) => {
@@ -186,21 +118,9 @@ export const App = () => {
       {route === "#chat" && <ChatPage initialQuestion={params.get("q")} />}
       {route === "#logs" && <LogsPage />}
       {route !== "#instellingen" && route !== "#chat" && route !== "#logs" && week && (
-        <main>
-          <div className="week">
-            {DAY_NAMES.map((name, i) => (
-              <DayColumn
-                key={name}
-                name={name}
-                date={addDays(week.monday, i)}
-                week={week}
-                onToggle={toggle}
-              />
-            ))}
-          </div>
-          <aside>
-            <AddHomework date={anchor} onAdded={refresh} />
-          </aside>
+        <main className="rooster">
+          <WeekGrid week={week} onToggle={toggle} />
+          <AddHomework date={anchor} onAdded={refresh} />
         </main>
       )}
     </div>

@@ -89,23 +89,64 @@ button:hover { background: #e8edf7; }
 .settings-page select { border: 1px solid #c6cede; border-radius: 8px; padding: 0.35rem 0.5rem; }
 .error { color: #b91c1c; }
 
-main { display: grid; grid-template-columns: 1fr 280px; gap: 1rem; margin-top: 1rem; }
-.week { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; }
-.day { background: #fff; border-radius: 12px; padding: 0.6rem; border: 1px solid #e3e8f2; }
-.day.today { border-color: #6366f1; box-shadow: 0 0 0 2px #6366f133; }
-.day h3 { margin: 0 0 0.5rem; font-size: 0.95rem; text-transform: capitalize; }
-.day h3 small { color: #8a94ab; font-weight: 400; }
-.day .empty { color: #a5aec3; font-size: 0.8rem; }
+main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
 
-.lesson {
-  display: flex; flex-direction: column; background: #eef2ff;
-  border-radius: 8px; padding: 0.35rem 0.5rem; margin-bottom: 0.35rem; font-size: 0.8rem;
+/* --- week calendar ------------------------------------------------------ */
+.cal { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; overflow: hidden; }
+.cal-head, .cal-body, .hw-grid { display: grid; grid-template-columns: 56px repeat(5, 1fr); }
+.cal-head { border-bottom: 1px solid #e3e8f2; }
+.cal-day-head {
+  padding: 0.5rem 0.4rem; font-size: 0.9rem; font-weight: 600; text-transform: capitalize;
+  border-left: 1px solid #eef1f7; text-align: center;
 }
-.lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
-.lesson .time { color: #6366f1; font-weight: 600; font-variant-numeric: tabular-nums; }
-.lesson .loc { color: #8a94ab; }
+.cal-day-head small { color: #8a94ab; font-weight: 400; }
+.cal-day-head.today { color: #4f46e5; background: #eef2ff; }
+.cal-body { position: relative; }
+.cal-gutter { position: relative; }
+.cal-hour {
+  position: absolute; right: 6px; transform: translateY(-50%);
+  font-size: 0.7rem; color: #8a94ab; font-variant-numeric: tabular-nums;
+}
+.cal-day {
+  position: relative; border-left: 1px solid #eef1f7;
+  background-image: linear-gradient(to bottom, #eef1f7 0, #eef1f7 1px, transparent 1px);
+}
+.cal-day.today { background-color: #f5f6ff; }
+.cal-lesson {
+  position: absolute; box-sizing: border-box; overflow: hidden;
+  background: #e0e7ff; border-left: 3px solid #6366f1; border-radius: 6px;
+  padding: 0.2rem 0.35rem; font-size: 0.72rem; line-height: 1.25;
+  display: flex; flex-direction: column;
+}
+.cal-lesson .time { color: #4f46e5; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cal-lesson .title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-lesson .loc { color: #6b7280; }
+.cal-lesson.compact { padding: 0.05rem 0.3rem; flex-direction: row; gap: 0.3rem; align-items: center; }
+.cal-lesson.compact .loc { display: none; }
+.cal-lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
+.cal-now {
+  position: absolute; left: 56px; right: 0; height: 0; border-top: 2px solid #ef4444;
+  pointer-events: none; z-index: 2;
+}
+.cal-now-label {
+  position: absolute; left: -52px; top: -0.55rem; font-size: 0.68rem; font-weight: 700;
+  color: #ef4444; background: #fff; padding: 0 3px; border-radius: 4px;
+}
+.cal-now-dot {
+  position: absolute; left: -5px; width: 10px; height: 10px; border-radius: 50%;
+  background: #ef4444; transform: translateY(-4px); z-index: 3;
+}
+.cal-divider { border: 0; border-top: 2px solid #d5dbe8; margin: 0.4rem 0; }
 
-.homework-list h4 { margin: 0.6rem 0 0.3rem; font-size: 0.8rem; color: #b45309; }
+/* --- homework beneath the calendar -------------------------------------- */
+.hw-grid { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; overflow: hidden; }
+.hw-label {
+  font-size: 0.7rem; color: #b45309; font-weight: 700; text-transform: uppercase;
+  writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; padding: 0.5rem 0;
+}
+.hw-day { border-left: 1px solid #eef1f7; padding: 0.4rem; min-height: 3rem; }
+.hw-day.today { background: #f5f6ff; }
+.hw-day .empty { color: #c5cbd8; font-size: 0.8rem; margin: 0.2rem 0; text-align: center; }
 .homework {
   display: flex; gap: 0.35rem; align-items: baseline; background: #fff7ed;
   border-radius: 8px; padding: 0.3rem 0.45rem; margin-bottom: 0.3rem; font-size: 0.8rem;
@@ -129,6 +170,5 @@ aside { display: flex; flex-direction: column; gap: 1rem; }
 .chat form input { flex: 1; }
 
 @media (max-width: 900px) {
-  main { grid-template-columns: 1fr; }
-  .week { grid-template-columns: 1fr; }
+  .cal-lesson { font-size: 0.62rem; }
 }
