@@ -13,16 +13,26 @@ import { VERSION } from "./version.ts"
  * exactly the "laptop opened again" moment we care about.
  */
 
+const AUTH_FAILS_KEY = "somtoday.authFails"
+
 const syncJob = Effect.gen(function* () {
   const somtoday = yield* Somtoday
   const store = yield* Store
   yield* somtoday.sync.pipe(
-    Effect.tap((r) => Effect.log(`somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk`)),
+    Effect.tap((r) =>
+      Effect.log(`somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk`).pipe(
+        Effect.andThen(store.setMeta(AUTH_FAILS_KEY, "0"))
+      )
+    ),
     Effect.catchTag("SomtodayError", (error) =>
       Effect.gen(function* () {
         yield* Effect.logWarning(`somtoday sync failed: ${error.reason} ${error.detail}`)
         if (error.reason !== "unauthenticated") return
-        // Ask for a re-login, but only once per open question.
+        // A single failure can be a transient token-rotation hiccup; only ask
+        // for a re-login after consecutive failures, and once per open question.
+        const fails = Number((yield* store.getMeta(AUTH_FAILS_KEY)) ?? "0") + 1
+        yield* store.setMeta(AUTH_FAILS_KEY, String(fails))
+        if (fails < 2) return
         const pending = yield* store.pendingPrompts
         if (pending.some((p) => p.kind === "reauth")) return
         yield* store.createPrompt({

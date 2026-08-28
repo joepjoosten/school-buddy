@@ -3,8 +3,9 @@ import type { HomeworkItem, Lesson, WeekData } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
-import { createHomework, runEffect, sendChat, setHomeworkDone } from "./api.ts"
+import { createHomework, runEffect, setHomeworkDone } from "./api.ts"
 import { healthAtom, weekAtom } from "./atoms.ts"
+import { ChatPage } from "./ChatPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
 
 const useHashRoute = (): string => {
@@ -113,40 +114,6 @@ const AddHomework = ({ date, onAdded }: { date: string; onAdded: () => void }) =
   )
 }
 
-const ChatPanel = () => {
-  const [messages, setMessages] = useState<Array<{ who: "jij" | "buddy"; text: string }>>([])
-  const [input, setInput] = useState("")
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const message = input.trim()
-    if (!message) return
-    setInput("")
-    setMessages((m) => [...m, { who: "jij", text: message }])
-    const { reply } = await runEffect(sendChat(message))
-    setMessages((m) => [...m, { who: "buddy", text: reply }])
-  }
-  return (
-    <div className="chat">
-      <h3>💬 Buddy</h3>
-      <div className="messages">
-        {messages.map((m, i) => (
-          <p key={i} className={m.who}>
-            <b>{m.who}:</b> {m.text}
-          </p>
-        ))}
-      </div>
-      <form onSubmit={submit}>
-        <input
-          placeholder="Vraag iets aan je buddy..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button type="submit">➤</button>
-      </form>
-    </div>
-  )
-}
-
 export const App = () => {
   const route = useHashRoute()
   const [anchor, setAnchor] = useState<string>(new Date().toISOString().slice(0, 10))
@@ -165,10 +132,10 @@ export const App = () => {
     refresh()
   }
 
-  // week navigation always lands on the rooster view, also from settings
+  // week navigation always lands on the rooster view, also from other pages
   const navigate = (update: (anchor: string) => string) => {
     setAnchor(update)
-    if (route === "#instellingen") window.location.hash = ""
+    if (route !== "") window.location.hash = ""
   }
 
   return (
@@ -197,17 +164,21 @@ export const App = () => {
             <span className="warn">⬆️ Update beschikbaar ({health.latestVersion})</span>
           )}
         {health && <span className="version">{health.version}</span>}
-        <a
-          className="settings-link"
-          href={route === "#instellingen" ? "#" : "#instellingen"}
-          title="Instellingen"
-        >
-          {route === "#instellingen" ? "📅 rooster" : "⚙️ instellingen"}
-        </a>
+        <span className="pages">
+          <a className={`page-link${route === "" ? " active" : ""}`} href="#">📅 rooster</a>
+          <a className={`page-link${route === "#chat" ? " active" : ""}`} href="#chat">💬 chat</a>
+          <a
+            className={`page-link${route === "#instellingen" ? " active" : ""}`}
+            href="#instellingen"
+          >
+            ⚙️ instellingen
+          </a>
+        </span>
       </header>
       {error !== null && <p className="error">Kan de daemon niet bereiken: {error}</p>}
       {route === "#instellingen" && <SettingsPage />}
-      {route !== "#instellingen" && week && (
+      {route === "#chat" && <ChatPage />}
+      {route !== "#instellingen" && route !== "#chat" && week && (
         <main>
           <div className="week">
             {DAY_NAMES.map((name, i) => (
@@ -222,7 +193,6 @@ export const App = () => {
           </div>
           <aside>
             <AddHomework date={anchor} onAdded={refresh} />
-            <ChatPanel />
           </aside>
         </main>
       )}

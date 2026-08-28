@@ -123,6 +123,7 @@ local function menuItems()
   return {
     { title = "📅 Rooster & huiswerk", fn = function() hs.urlevent.openURL(DAEMON) end },
     { title = "❓ Vragen checken", fn = checkPending },
+    { title = "💬 Chat", fn = function() hs.urlevent.openURL(DAEMON .. "/#chat") end },
     { title = "⚙️ Instellingen", fn = function() hs.urlevent.openURL(DAEMON .. "/#instellingen") end },
     { title = "⬆️ Update installeren", fn = runUpdate },
     { title = "-" },

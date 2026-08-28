@@ -3,6 +3,7 @@ import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Semaphore from "effect/Semaphore"
 import { keychainGet, keychainSet } from "./Keychain.ts"
 import { Store } from "./Store.ts"
 import { addDays, mondayOf, toDateOnly } from "./time.ts"
@@ -208,26 +209,59 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
 const makeSomtoday = Effect.gen(function* () {
   const store = yield* Store
 
-  const refreshAccessToken: Effect.Effect<
-    { accessToken: string; apiUrl: string },
-    SomtodayError
-  > = Effect.gen(function* () {
-    const refreshToken = yield* keychainGet(KC_REFRESH)
-    if (refreshToken === null) {
-      return yield* new SomtodayError({
-        reason: "unauthenticated",
-        detail: "no refresh token stored — run the setup flow"
-      })
-    }
-    const tokens = yield* tokenRequest({
+  // The refresh token is single-use (rotation), so refreshes must never run
+  // concurrently, and the short-lived access token is cached to avoid burning
+  // a rotation on every request.
+  let cachedAuth: { accessToken: string; apiUrl: string; expiresAt: number } | null = null
+  const refreshSemaphore = yield* Semaphore.make(1)
+
+  const doRefresh = (refreshToken: string) =>
+    tokenRequest({
       grant_type: "refresh_token",
       client_id: CLIENT_ID,
       refresh_token: refreshToken
     })
-    // Somtoday rotates refresh tokens: always persist the newest one.
-    yield* persistTokens(tokens)
-    return { accessToken: tokens.access_token, apiUrl: tokens.somtoday_api_url }
-  })
+
+  const refreshAccessToken: Effect.Effect<
+    { accessToken: string; apiUrl: string },
+    SomtodayError
+  > = refreshSemaphore.withPermits(1)(
+    Effect.gen(function* () {
+      if (cachedAuth !== null && Date.now() < cachedAuth.expiresAt - 60_000) {
+        return cachedAuth
+      }
+      const refreshToken = yield* keychainGet(KC_REFRESH)
+      if (refreshToken === null) {
+        return yield* new SomtodayError({
+          reason: "unauthenticated",
+          detail: "no refresh token stored — run the setup flow"
+        })
+      }
+      const tokens = yield* doRefresh(refreshToken).pipe(
+        Effect.catchTag("SomtodayError", (error) => {
+          if (error.reason !== "unauthenticated") return Effect.fail(error)
+          // Another process (or a previous crash mid-rotation) may have
+          // rotated the token already — re-read the Keychain and retry once.
+          return Effect.gen(function* () {
+            yield* Effect.sleep("1 second")
+            const latest = yield* keychainGet(KC_REFRESH)
+            if (latest === null || latest === refreshToken) {
+              return yield* Effect.fail(error)
+            }
+            return yield* doRefresh(latest)
+          })
+        })
+      )
+      // Somtoday rotates refresh tokens: always persist the newest one.
+      yield* persistTokens(tokens)
+      cachedAuth = {
+        accessToken: tokens.access_token,
+        apiUrl: tokens.somtoday_api_url,
+        expiresAt: Date.now() + tokens.expires_in * 1000
+      }
+      return cachedAuth
+    })
+  )
 
   const apiGet = (
     auth: { accessToken: string; apiUrl: string },
@@ -284,7 +318,14 @@ const makeSomtoday = Effect.gen(function* () {
 
     yield* store.setMeta("somtoday.lastSync", new Date().toISOString())
     return { lessons: lessons.length, homework: items.length }
-  })
+  }).pipe(
+    // a 401 from the API means the cached access token is no longer valid
+    Effect.tapError((error) =>
+      Effect.sync(() => {
+        if (error.reason === "unauthenticated") cachedAuth = null
+      })
+    )
+  )
 
   // PKCE verifier for an in-flight web connect attempt (daemon-lifetime state)
   let pendingVerifier: string | null = null
