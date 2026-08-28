@@ -1,14 +1,16 @@
 import { BunHttpServer } from "@effect/platform-bun"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
+import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpRouter, HttpStaticServer } from "effect/unstable/http"
 import { existsSync, mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
-import { AiLive } from "./Ai.ts"
+import { Ai, AiLive } from "./Ai.ts"
 import { ApiLive } from "./ApiLive.ts"
 import { SchedulerLive } from "./Scheduler.ts"
 import { SomtodayLive } from "./Somtoday.ts"
+import { replanById } from "./Planner.ts"
 import { StoreLive } from "./Store.ts"
 
 /** The daemon as an Effect: launches the server + scheduler and never returns. */
@@ -35,6 +37,16 @@ export const daemonEffect = (): Effect.Effect<never> => {
   const AppServices = Layer.provideMerge(
     Layer.mergeAll(SomtodayLive, AiLive),
     StoreLive.pipe(Layer.provide(SqlLive))
+  ).pipe(
+    // chat tools can trigger (re)planning, which itself needs Ai
+    Layer.tap((context) =>
+      Effect.gen(function* () {
+        const ai = Context.get(context, Ai)
+        ai.setReplanner((homeworkId) =>
+          replanById(homeworkId).pipe(Effect.provide(context)) as Effect.Effect<string>
+        )
+      })
+    )
   )
 
   const WebLive = HttpStaticServer.layer({

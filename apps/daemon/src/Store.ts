@@ -97,6 +97,14 @@ export interface StoreShape {
   readonly setPlanItemDone: (id: string, done: boolean) => Effect.Effect<boolean>
   readonly movePlanItem: (id: string, day: string) => Effect.Effect<boolean>
   readonly setHomeworkKind: (id: string, kind: HomeworkKind) => Effect.Effect<void>
+  /** change subject / due date / description; null = leave as-is */
+  readonly updateHomework: (id: string, fields: {
+    readonly subject?: string | null
+    readonly dueDate?: string | null
+    readonly description?: string | null
+  }) => Effect.Effect<HomeworkItem | null>
+  /** drop the plan + planning status so the item gets planned again */
+  readonly clearPlanning: (homeworkId: string) => Effect.Effect<void>
   /** homework whose kind hasn't been decided yet (open, not deleted) */
   readonly unclassifiedHomework: Effect.Effect<Array<HomeworkItem>>
   readonly setPlanningStatus: (homeworkId: string, status: "planned" | "asked" | "skipped") => Effect.Effect<void>
@@ -738,6 +746,25 @@ const makeStore = Effect.gen(function* () {
 
     setHomeworkKind: (id, kind) =>
       sql`update homework set kind = ${kind} where id = ${id}`.pipe(Effect.asVoid, Effect.orDie),
+
+    updateHomework: (id, fields) =>
+      Effect.gen(function* () {
+        const current = yield* store.getHomework(id)
+        if (current === null) return null
+        const subject = fields.subject ?? current.subject
+        const dueDate = fields.dueDate ?? current.dueDate
+        const description = fields.description ?? current.description
+        yield* sql`update homework
+          set subject = ${subject}, due_date = ${dueDate}, description = ${description}
+          where id = ${id}`
+        return yield* store.getHomework(id)
+      }).pipe(Effect.orDie),
+
+    clearPlanning: (homeworkId) =>
+      Effect.gen(function* () {
+        yield* sql`delete from plan_items where homework_id = ${homeworkId}`
+        yield* sql`delete from homework_planning where homework_id = ${homeworkId}`
+      }).pipe(Effect.orDie),
 
     unclassifiedHomework: sql<HomeworkRow>`
       select * from homework

@@ -122,3 +122,20 @@ export const planUnplannedHomework: Effect.Effect<number, never, Store | Ai> = E
 
 export const nextDays = (from: string, count: number): Array<string> =>
   Array.from({ length: count }, (_, i) => toDateOnly(addDays(parseDateOnly(from), i)))
+
+/** Replan one homework item by id; returns a short Dutch status for the chat. */
+export const replanById = (homeworkId: string): Effect.Effect<string, never, Store | Ai> =>
+  Effect.gen(function* () {
+    const store = yield* Store
+    const item = yield* store.getHomework(homeworkId)
+    if (item === null) return "geen huiswerk met dat id gevonden."
+    if (item.kind !== "task") {
+      yield* store.setPlanningStatus(item.id, "skipped")
+      return "dit item hoeft niet ingepland te worden."
+    }
+    const outcome = yield* planHomework(item)
+    if (outcome === "skipped") return "niet ingepland (de datum is al geweest)."
+    if (outcome === "asked") return "ik heb er een vraag over gesteld."
+    const items = yield* store.planItemsForHomework(item.id)
+    return `opnieuw ingepland: ${items.map((p) => `${p.day} ${p.durationMinutes} min`).join(", ")}`
+  })

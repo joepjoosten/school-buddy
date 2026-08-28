@@ -40,6 +40,8 @@ export const PROVIDERS: Record<
 }
 
 export interface AiShape {
+  /** wired by the daemon so chat tools can trigger (re)planning */
+  readonly setReplanner: (fn: (homeworkId: string) => Effect.Effect<string>) => void
   /** Chat with the buddy; never fails, returns a friendly Dutch message on problems. */
   readonly chat: (message: string) => Effect.Effect<string>
   /**
@@ -86,6 +88,7 @@ Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk 
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
 Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen, en om huiswerk toe te voegen, af te vinken of te verwijderen; verzin nooit roostergegevens.
 Gebruik huiswerk_openstaand om de juiste id's te vinden voordat je afvinkt of verwijdert.
+Je kunt ook corrigeren wat voor soort huiswerk iets is: gebruik huiswerk_soort_wijzigen als iets alleen "meenemen" is (reminder) of juist wél echt werk (task); de planning wordt dan automatisch bijgewerkt.
 Elk huiswerkitem krijgt een planning van leersessies (dag + duur); gebruik planning_overzicht, planning_maken, planning_verplaatsen en planning_afvinken als de leerling over zijn planning praat.
 Als je eerder in dit gesprek een vraag stelde over de planning van huiswerk en de leerling antwoordt, maak dan de planning met planning_maken (het homeworkId staat in je vraag).
 Als je eerder in dit gesprek vroeg of twee huiswerkitems hetzelfde zijn en de leerling antwoordt: gebruik huiswerk_samenvoegen bij "ja" en huiswerk_apart_houden bij "nee" (de id's staan in je vraag).
@@ -153,6 +156,32 @@ const makeAi = Effect.gen(function* () {
       parameters: Schema.Struct({ selfId: Schema.String, somtodayId: Schema.String }),
       success: Schema.String
     }),
+    Tool.make("huiswerk_soort_wijzigen", {
+      description:
+        "Wijzigt wat voor soort huiswerk een item is: 'task' (echt werk, wordt ingepland), 'reminder' (alleen meenemen/klaarleggen, geen planning) of 'info'. Plant het item daarna automatisch opnieuw in of haalt de planning juist weg.",
+      parameters: Schema.Struct({
+        id: Schema.String,
+        kind: Schema.Literals(["task", "reminder", "info"])
+      }),
+      success: Schema.String
+    }),
+    Tool.make("huiswerk_wijzigen", {
+      description:
+        "Past een huiswerkitem aan: vak, inleverdatum (YYYY-MM-DD) en/of omschrijving. Laat velden weg die hetzelfde blijven. Bij een nieuwe datum wordt de planning opnieuw gemaakt.",
+      parameters: Schema.Struct({
+        id: Schema.String,
+        subject: Schema.optional(Schema.String),
+        dueDate: Schema.optional(Schema.String),
+        description: Schema.optional(Schema.String)
+      }),
+      success: Schema.String
+    }),
+    Tool.make("planning_opnieuw", {
+      description:
+        "Maakt de planning van een huiswerkitem opnieuw (bv. als de leerling het anders verdeeld wil hebben en jij geen concrete sessies meegeeft).",
+      parameters: Schema.Struct({ homeworkId: Schema.String }),
+      success: Schema.String
+    }),
     Tool.make("planning_overzicht", {
       description: "Geeft de planning (leersessies per dag, met id's) van vandaag tot 2 weken vooruit.",
       success: Schema.String
@@ -187,6 +216,14 @@ const makeAi = Effect.gen(function* () {
       success: Schema.String
     })
   )
+
+  // set by AiLive after construction: planning needs Ai itself, so it is
+  // injected to avoid a circular service dependency
+  let replanFn: ((homeworkId: string) => Effect.Effect<string>) | null = null
+  const replan = (homeworkId: string): Effect.Effect<string> =>
+    replanFn === null
+      ? Effect.succeed("planning volgt automatisch.")
+      : replanFn(homeworkId)
 
   const handlers = toolkit.toLayer({
     rooster_week: ({ date }) =>
@@ -233,6 +270,39 @@ const makeAi = Effect.gen(function* () {
       store
         .recordDedupVerdict(selfId, somtodayId, "different")
         .pipe(Effect.map(() => "Genoteerd: dit zijn twee verschillende opdrachten.")),
+    huiswerk_soort_wijzigen: ({ id, kind }) =>
+      Effect.gen(function* () {
+        const item = yield* store.getHomework(id)
+        if (item === null) return "Geen huiswerk met dat id gevonden."
+        yield* store.setHomeworkKind(id, kind)
+        yield* store.clearPlanning(id)
+        if (kind !== "task") {
+          yield* store.setPlanningStatus(id, "skipped")
+          return `"${item.description.slice(0, 40)}" is nu een ${kind === "reminder" ? "reminder (meenemen)" : "mededeling"} — planning verwijderd.`
+        }
+        const outcome = yield* replan(item.id)
+        return `"${item.description.slice(0, 40)}" is nu echt huiswerk — ${outcome}`
+      }),
+    huiswerk_wijzigen: ({ id, subject, dueDate, description }) =>
+      Effect.gen(function* () {
+        const updated = yield* store.updateHomework(id, {
+          subject: subject ?? null,
+          dueDate: dueDate ?? null,
+          description: description ?? null
+        })
+        if (updated === null) return "Geen huiswerk met dat id gevonden."
+        if (dueDate !== undefined) {
+          yield* store.clearPlanning(id)
+          const outcome = yield* replan(id)
+          return `Aangepast (nu voor ${updated.dueDate}) — ${outcome}`
+        }
+        return `Aangepast: ${updated.subject} — ${updated.description.slice(0, 50)}`
+      }),
+    planning_opnieuw: ({ homeworkId }) =>
+      Effect.gen(function* () {
+        yield* store.clearPlanning(homeworkId)
+        return yield* replan(homeworkId)
+      }),
     planning_overzicht: () =>
       store
         .planItemsBetween(toDateOnly(new Date()), toDateOnly(addDays(new Date(), 14)))
@@ -594,6 +664,9 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
     })
 
   const shape: AiShape = {
+    setReplanner: (fn) => {
+      replanFn = fn
+    },
     chat,
     interpretHomework,
     judgeSameHomework,
