@@ -187,3 +187,17 @@ aside { display: flex; flex-direction: column; gap: 1rem; }
 @media (max-width: 900px) {
   .cal-lesson { font-size: 0.62rem; }
 }
+
+.changes-page { margin-top: 1rem; }
+table.changes { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; font-size: 0.85rem; }
+table.changes th, table.changes td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eef1f7; vertical-align: top; }
+table.changes th { color: #8a94ab; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+table.changes tbody tr { cursor: pointer; }
+table.changes tbody tr:hover { background: #f8f9fe; }
+.kind { padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.kind-added { background: #dcfce7; color: #166534; }
+.kind-removed { background: #fee2e2; color: #991b1b; }
+.kind-changed { background: #fef3c7; color: #92400e; }
+.kind-moved { background: #e0e7ff; color: #3730a3; }
+.kind-published { background: #e5e7eb; color: #374151; }
+.change-json { background: #111827; color: #d1d5db; border-radius: 8px; padding: 0.5rem; font-size: 0.7rem; margin: 0.4rem 0 0; overflow-x: auto; }

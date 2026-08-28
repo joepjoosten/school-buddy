@@ -11,6 +11,7 @@ import {
   HomeworkItem,
   Prompt,
   PromptAnswer,
+  RosterChange,
   School,
   Settings,
   Signal,
@@ -25,6 +26,10 @@ const rooster = HttpApiGroup.make("rooster").add(
     // any date inside the requested week, YYYY-MM-DD; defaults to today
     query: { date: Schema.optional(Schema.String) },
     success: WeekData
+  }),
+  HttpApiEndpoint.get("changes", "/api/roster/changes", {
+    query: { limit: Schema.optional(Schema.String) },
+    success: Schema.Array(RosterChange)
   })
 )
 

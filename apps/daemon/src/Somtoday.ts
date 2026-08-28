@@ -112,6 +112,7 @@ export const persistTokens = (tokens: TokenResponse): Effect.Effect<void> =>
 export interface SyncResult {
   readonly lessons: number
   readonly homework: number
+  readonly changes: number
 }
 
 export interface SomtodayShape {
@@ -331,7 +332,10 @@ const makeSomtoday = Effect.gen(function* () {
     const lessons = afspraken
       .map(mapAfspraak)
       .filter((l): l is Lesson => l !== null)
-    yield* store.replaceLessons(lessons, from, to)
+    const changes = yield* store.reconcileLessons(lessons, from, to)
+    if (changes.length > 0) {
+      yield* Effect.log(`roster changes: ${changes.map((c) => c.summary).join(" | ")}`)
+    }
 
     const huiswerk = yield* apiGetAll(auth, "studiewijzeritemafspraaktoekenningen", {
       begintNaOfOp: from
@@ -342,7 +346,7 @@ const makeSomtoday = Effect.gen(function* () {
     yield* store.upsertSomtodayHomework(items)
 
     yield* store.setMeta("somtoday.lastSync", new Date().toISOString())
-    return { lessons: lessons.length, homework: items.length }
+    return { lessons: lessons.length, homework: items.length, changes: changes.length }
   }).pipe(
     // a 401 from the API means the cached access token is no longer valid
     Effect.tapError((error) =>

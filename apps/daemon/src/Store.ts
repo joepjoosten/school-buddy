@@ -6,6 +6,7 @@ import type {
   Prompt,
   PromptAnswer,
   PromptKind,
+  RosterChange,
   Settings,
   Signal,
   WeekData
@@ -17,7 +18,8 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { SqlClient } from "effect/unstable/sql/SqlClient"
-import { weekBoundsOf } from "./time.ts"
+import { diffLessons } from "./rosterDiff.ts"
+import { toDateOnly, weekBoundsOf } from "./time.ts"
 
 export interface StoreShape {
   readonly replaceLessons: (
@@ -25,6 +27,18 @@ export interface StoreShape {
     fromDate: string,
     toDateExclusive: string
   ) => Effect.Effect<void>
+  /**
+   * Diff the fetched lessons against the stored ones (dates already synced
+   * before, not in the past), log the differences, then replace the window.
+   */
+  readonly reconcileLessons: (
+    lessons: ReadonlyArray<Lesson>,
+    fromDate: string,
+    toDateExclusive: string
+  ) => Effect.Effect<Array<RosterChange>>
+  readonly recentChanges: (limit: number) => Effect.Effect<Array<RosterChange>>
+  readonly unnotifiedChanges: (untilDateExclusive: string) => Effect.Effect<Array<RosterChange>>
+  readonly markChangesNotified: (ids: ReadonlyArray<string>) => Effect.Effect<void>
   readonly weekData: (date: string) => Effect.Effect<WeekData>
   readonly lessonsEndedBetween: (fromIso: string, toIso: string) => Effect.Effect<Array<Lesson>>
   readonly nextLessonForSubject: (
@@ -100,8 +114,46 @@ const migrations = [
   `create table if not exists meta (
     key text primary key,
     value text not null
+  )`,
+  `create table if not exists roster_changes (
+    id text primary key,
+    detected_at text not null,
+    kind text not null,
+    date text not null,
+    subject text,
+    lesson_id text,
+    summary text not null,
+    before_json text,
+    after_json text,
+    notified integer not null default 0
   )`
 ]
+
+interface RosterChangeRow {
+  readonly id: string
+  readonly detected_at: string
+  readonly kind: string
+  readonly date: string
+  readonly subject: string | null
+  readonly lesson_id: string | null
+  readonly summary: string
+  readonly before_json: string | null
+  readonly after_json: string | null
+  readonly notified: number
+}
+
+const rosterChangeFromRow = (row: RosterChangeRow): RosterChange => ({
+  id: row.id,
+  detectedAt: row.detected_at,
+  kind: row.kind as RosterChange["kind"],
+  date: row.date,
+  subject: row.subject,
+  lessonId: row.lesson_id,
+  summary: row.summary,
+  before: row.before_json === null ? null : (JSON.parse(row.before_json) as Lesson),
+  after: row.after_json === null ? null : (JSON.parse(row.after_json) as Lesson),
+  notified: row.notified === 1
+})
 
 interface LessonRow {
   readonly id: string
@@ -192,6 +244,60 @@ const makeStore = Effect.gen(function* () {
             (id, subject, title, location, teacher, start, end, cancelled, period_start, period_end)
             values (${l.id}, ${l.subject}, ${l.title}, ${l.location}, ${l.teacher},
                     ${l.start}, ${l.end}, ${l.cancelled ? 1 : 0}, ${l.periodStart}, ${l.periodEnd})`
+        }
+      }).pipe(Effect.orDie),
+
+    reconcileLessons: (lessons, fromDate, toDateExclusive) =>
+      Effect.gen(function* () {
+        const syncedUntil = yield* store.getMeta("roster.syncedUntil")
+        const detected: Array<RosterChange> = []
+        // first sync ever: just seed the baseline, nothing to compare against
+        if (syncedUntil !== null) {
+          const rows = yield* sql<LessonRow>`
+            select * from lessons where start >= ${fromDate} and start < ${toDateExclusive}`
+          const today = toDateOnly(new Date())
+          const changes = diffLessons(rows.map(lessonFromRow), lessons, {
+            from: today > fromDate ? today : fromDate,
+            until: syncedUntil < toDateExclusive ? syncedUntil : toDateExclusive
+          })
+          const now = new Date().toISOString()
+          for (const c of changes) {
+            const change: RosterChange = { ...c, id: crypto.randomUUID(), detectedAt: now, notified: false }
+            yield* sql`insert into roster_changes
+              (id, detected_at, kind, date, subject, lesson_id, summary, before_json, after_json, notified)
+              values (${change.id}, ${change.detectedAt}, ${change.kind}, ${change.date}, ${change.subject},
+                      ${change.lessonId}, ${change.summary},
+                      ${change.before === null ? null : JSON.stringify(change.before)},
+                      ${change.after === null ? null : JSON.stringify(change.after)}, 0)`
+            detected.push(change)
+          }
+        }
+        yield* store.replaceLessons(lessons, fromDate, toDateExclusive)
+        const newUntil = syncedUntil !== null && syncedUntil > toDateExclusive ? syncedUntil : toDateExclusive
+        yield* store.setMeta("roster.syncedUntil", newUntil)
+        return detected
+      }).pipe(Effect.orDie),
+
+    recentChanges: (limit) =>
+      sql<RosterChangeRow>`
+        select * from roster_changes order by detected_at desc, date asc limit ${limit}`.pipe(
+        Effect.map((rows) => rows.map(rosterChangeFromRow)),
+        Effect.orDie
+      ),
+
+    unnotifiedChanges: (untilDateExclusive) =>
+      sql<RosterChangeRow>`
+        select * from roster_changes
+        where notified = 0 and kind != 'published' and date < ${untilDateExclusive}
+        order by date asc`.pipe(
+        Effect.map((rows) => rows.map(rosterChangeFromRow)),
+        Effect.orDie
+      ),
+
+    markChangesNotified: (ids) =>
+      Effect.gen(function* () {
+        for (const id of ids) {
+          yield* sql`update roster_changes set notified = 1 where id = ${id}`
         }
       }).pipe(Effect.orDie),
 

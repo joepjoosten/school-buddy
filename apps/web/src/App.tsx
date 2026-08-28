@@ -6,6 +6,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
 import { createHomework, runEffect, setHomeworkDone } from "./api.ts"
 import { healthAtom, settingsAtom, weekAtom } from "./atoms.ts"
+import { ChangesPage } from "./ChangesPage.tsx"
 import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
@@ -122,7 +123,8 @@ export const App = () => {
       {route === "#instellingen" && <SettingsPage />}
       {route === "#chat" && <ChatPage initialQuestion={params.get("q")} />}
       {route === "#logs" && <LogsPage />}
-      {route !== "#instellingen" && route !== "#chat" && route !== "#logs" && week && (
+      {route === "#wijzigingen" && <ChangesPage />}
+      {!["#instellingen", "#chat", "#logs", "#wijzigingen"].includes(route) && week && (
         <main className="rooster">
           <WeekGrid week={week} periods={periods} onToggle={toggle} />
           <AddHomework date={anchor} onAdded={refresh} />

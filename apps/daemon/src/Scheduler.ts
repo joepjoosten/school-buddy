@@ -4,6 +4,7 @@ import * as Schedule from "effect/Schedule"
 import { planHomeworkPrompts } from "./Buddy.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
+import { addDays, toDateOnly } from "./time.ts"
 import { fetchLatestVersion } from "./update.ts"
 import { VERSION } from "./version.ts"
 
@@ -15,13 +16,31 @@ import { VERSION } from "./version.ts"
 
 const AUTH_FAILS_KEY = "somtoday.authFails"
 
+/** Tell the student about roster changes that hit the next ~2 days. */
+const notifyRosterChanges = Effect.gen(function* () {
+  const store = yield* Store
+  const horizon = toDateOnly(addDays(new Date(), 3))
+  const changes = yield* store.unnotifiedChanges(horizon)
+  if (changes.length === 0) return
+  const lines = changes.slice(0, 6).map((c) => `• ${c.summary}`)
+  const more = changes.length > 6 ? `\n… en nog ${changes.length - 6} wijzigingen` : ""
+  yield* store.createPrompt({
+    kind: "info",
+    text: `Let op, je rooster is veranderd:\n${lines.join("\n")}${more}`
+  })
+  yield* store.markChangesNotified(changes.map((c) => c.id))
+})
+
 const syncJob = Effect.gen(function* () {
   const somtoday = yield* Somtoday
   const store = yield* Store
   yield* somtoday.sync.pipe(
     Effect.tap((r) =>
-      Effect.log(`somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk`).pipe(
-        Effect.andThen(store.setMeta(AUTH_FAILS_KEY, "0"))
+      Effect.log(
+        `somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk, ${r.changes} wijzigingen`
+      ).pipe(
+        Effect.andThen(store.setMeta(AUTH_FAILS_KEY, "0")),
+        Effect.andThen(notifyRosterChanges)
       )
     ),
     Effect.catchTag("SomtodayError", (error) =>

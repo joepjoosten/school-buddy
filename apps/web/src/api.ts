@@ -8,6 +8,7 @@ import {
   HomeworkInput,
   HomeworkItem,
   LogsResponse,
+  RosterChange,
   School,
   UpdateCheck,
   Settings,
@@ -84,6 +85,9 @@ export const fetchAiModels = request(AiModels, "/api/ai/models")
 
 export const fetchLogs = (minutes: number) =>
   request(LogsResponse, `/api/logs?minutes=${minutes}`)
+
+export const fetchRosterChanges = (limit = 200) =>
+  request(Schema.Array(RosterChange), `/api/roster/changes?limit=${limit}`)
 
 export const checkUpdate = request(UpdateCheck, "/api/update/check", { method: "POST" })
 

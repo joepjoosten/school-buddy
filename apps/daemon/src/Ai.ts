@@ -59,7 +59,7 @@ const chatSystemPrompt = (): string =>
   `Je bent School Buddy 🎒, het maatje van een middelbare scholier op zijn laptop.
 Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk uitleggen (als een tutor).
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
-Gebruik de tools om het echte rooster en huiswerk op te halen of huiswerk toe te voegen; verzin nooit roostergegevens.
+Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen of huiswerk toe te voegen; verzin nooit roostergegevens.
 Vandaag is ${toDateOnly(new Date())}.`
 
 const InterpretedHomework = Schema.Struct({
@@ -86,6 +86,11 @@ const makeAi = Effect.gen(function* () {
       parameters: Schema.Struct({ date: Schema.String }),
       success: Schema.String
     }),
+    Tool.make("roosterwijzigingen", {
+      description:
+        "Geeft de recent gedetecteerde roosterwijzigingen (uitval, verplaatsingen, lokaalwissels), nieuwste eerst.",
+      success: Schema.String
+    }),
     Tool.make("huiswerk_toevoegen", {
       description: "Voegt een huiswerkitem toe voor de leerling.",
       parameters: Schema.Struct({
@@ -100,6 +105,16 @@ const makeAi = Effect.gen(function* () {
   const handlers = toolkit.toLayer({
     rooster_week: ({ date }) =>
       store.weekData(date).pipe(Effect.map((week) => JSON.stringify(week))),
+    roosterwijzigingen: () =>
+      store.recentChanges(30).pipe(
+        Effect.map((changes) =>
+          changes.length === 0
+            ? "Geen roosterwijzigingen bekend."
+            : changes
+              .map((c) => `${c.detectedAt.slice(0, 10)} [${c.kind}] ${c.summary}`)
+              .join("\n")
+        )
+      ),
     huiswerk_toevoegen: (input) =>
       store
         .createHomework({ ...input, lessonId: null }, "self")

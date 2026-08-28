@@ -13,12 +13,19 @@ import { toDateOnly } from "./time.ts"
 import { VERSION } from "./version.ts"
 
 const RoosterLive = HttpApiBuilder.group(Api, "rooster", (handlers) =>
-  handlers.handle("week", ({ query }) =>
-    Effect.gen(function* () {
-      const store = yield* Store
-      const date = query.date ?? toDateOnly(new Date())
-      return yield* store.weekData(date)
-    })))
+  handlers
+    .handle("week", ({ query }) =>
+      Effect.gen(function* () {
+        const store = yield* Store
+        const date = query.date ?? toDateOnly(new Date())
+        return yield* store.weekData(date)
+      }))
+    .handle("changes", ({ query }) =>
+      Effect.gen(function* () {
+        const store = yield* Store
+        const limit = Math.min(500, Math.max(1, Number(query.limit ?? "100") || 100))
+        return yield* store.recentChanges(limit)
+      })))
 
 const HomeworkLive = HttpApiBuilder.group(Api, "homework", (handlers) =>
   handlers
@@ -170,7 +177,7 @@ const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
           Effect.map((result) => ({
             ok: true,
             message:
-              `${result.lessons} lessen en ${result.homework} huiswerkitems opgehaald`
+              `${result.lessons} lessen en ${result.homework} huiswerkitems opgehaald, ${result.changes} roosterwijzigingen`
           })),
           Effect.catchTag("SomtodayError", (error) =>
             Effect.succeed({ ok: false, message: `${error.reason}: ${error.detail}` }))

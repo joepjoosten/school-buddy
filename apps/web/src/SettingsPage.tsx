@@ -470,6 +470,10 @@ const DebugSection = () => (
       <a href="#logs">🪵 Bekijk daemon-logs</a> — of in de terminal:{" "}
       <code>school-buddy logs --tail</code>
     </p>
+    <p>
+      <a href="#wijzigingen">🔀 Roosterwijzigingen</a> — alles wat de sync sinds de vorige
+      keer anders zag in het rooster.
+    </p>
   </section>
 )
 

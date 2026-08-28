@@ -219,6 +219,29 @@ export const ActionResult = Schema.Struct({
 })
 export type ActionResult = typeof ActionResult.Type
 
+// --- Roster changes (detected by diffing each Somtoday sync) ---------------
+
+export const RosterChangeKind = Schema.Literals(["added", "removed", "changed", "moved", "published"])
+export type RosterChangeKind = typeof RosterChangeKind.Type
+
+export const RosterChange = Schema.Struct({
+  id: Schema.String,
+  /** ISO datetime the change was detected */
+  detectedAt: Schema.String,
+  kind: RosterChangeKind,
+  /** YYYY-MM-DD the change applies to */
+  date: Schema.String,
+  subject: Schema.NullOr(Schema.String),
+  lessonId: Schema.NullOr(Schema.String),
+  /** human-readable Dutch summary, e.g. "wisb ma 7 sep 6e uur: lokaal t39 → t41" */
+  summary: Schema.String,
+  before: Schema.NullOr(Lesson),
+  after: Schema.NullOr(Lesson),
+  /** whether the student has been told about it */
+  notified: Schema.Boolean
+})
+export type RosterChange = typeof RosterChange.Type
+
 // --- Updates ----------------------------------------------------------------
 
 export const UpdateCheck = Schema.Struct({
