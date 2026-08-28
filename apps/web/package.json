@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run build --watch",
-    "build": "bun build src/index.html --outdir dist"
+    "build": "rm -rf dist && bun build src/index.html --outdir dist"
   },
   "dependencies": {
     "@effect/atom-react": "4.0.0-rc.112",
