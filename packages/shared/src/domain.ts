@@ -135,6 +135,41 @@ export const ChatHistory = Schema.Struct({
 export type ChatHistory = typeof ChatHistory.Type
 export type ChatReply = typeof ChatReply.Type
 
+// --- Planning ---------------------------------------------------------------
+
+export const PlanItem = Schema.Struct({
+  id: Schema.String,
+  homeworkId: Schema.String,
+  /** copied from the homework for display */
+  subject: Schema.String,
+  homeworkDescription: Schema.String,
+  dueDate: Schema.String,
+  /** YYYY-MM-DD; no specific time */
+  day: Schema.String,
+  durationMinutes: Schema.Number,
+  /** short label for this session, e.g. "Frans woordjes leren (1/3)" */
+  title: Schema.String,
+  done: Schema.Boolean,
+  createdAt: Schema.String
+})
+export type PlanItem = typeof PlanItem.Type
+
+export const PlanItemInput = Schema.Struct({
+  day: Schema.String,
+  durationMinutes: Schema.Number,
+  title: Schema.String
+})
+export type PlanItemInput = typeof PlanItemInput.Type
+
+export const PlanningWeek = Schema.Struct({
+  monday: Schema.String,
+  items: Schema.Array(PlanItem)
+})
+export type PlanningWeek = typeof PlanningWeek.Type
+
+export const PlanningPreference = Schema.Literals(["day-before", "day-given"])
+export type PlanningPreference = typeof PlanningPreference.Type
+
 // --- Settings -------------------------------------------------------------
 
 export const AiProvider = Schema.Literals(["openai", "openrouter"])
@@ -163,7 +198,9 @@ export const Settings = Schema.Struct({
    * Used for period markers on the calendar and as fallback when Somtoday
    * doesn't provide a lesuur. Per install, so per student.
    */
-  lestijden: Schema.String
+  lestijden: Schema.String,
+  /** when regular homework is planned: the day before it's due, or the day it was given */
+  planningPreference: PlanningPreference
 })
 export type Settings = typeof Settings.Type
 
@@ -185,7 +222,8 @@ export const defaultSettings: Settings = {
     "7 14:05-14:55",
     "8 15:05-15:55",
     "9 15:55-16:45"
-  ].join("\n")
+  ].join("\n"),
+  planningPreference: "day-before"
 }
 
 export interface Period {

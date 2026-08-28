@@ -4,6 +4,8 @@ import type {
   HomeworkItem,
   HomeworkSource,
   Lesson,
+  PlanItem,
+  PlanItemInput,
   Prompt,
   PromptAnswer,
   PromptKind,
@@ -86,6 +88,18 @@ export interface StoreShape {
   /** messages not yet folded into the rolling summary, oldest first */
   readonly uncompactedChatMessages: Effect.Effect<Array<ChatMessage>>
   readonly markChatCompacted: (beforeIso: string) => Effect.Effect<void>
+  // --- planning ---
+  readonly planItemsBetween: (fromDate: string, toDateExclusive: string) => Effect.Effect<Array<PlanItem>>
+  readonly planItemsForHomework: (homeworkId: string) => Effect.Effect<Array<PlanItem>>
+  /** replaces any existing plan for the homework */
+  readonly setPlan: (homeworkId: string, items: ReadonlyArray<PlanItemInput>) => Effect.Effect<Array<PlanItem>>
+  readonly setPlanItemDone: (id: string, done: boolean) => Effect.Effect<boolean>
+  readonly movePlanItem: (id: string, day: string) => Effect.Effect<boolean>
+  readonly setPlanningStatus: (homeworkId: string, status: "planned" | "asked" | "skipped") => Effect.Effect<void>
+  /** open, not-deleted homework due on/after fromDate without a planning status */
+  readonly unplannedHomework: (fromDate: string) => Effect.Effect<Array<HomeworkItem>>
+  /** lessons + already planned minutes per day, for spreading work sensibly */
+  readonly dayLoads: (fromDate: string, toDateExclusive: string) => Effect.Effect<Array<{ day: string; lessons: number; plannedMinutes: number }>>
   readonly getSettings: Effect.Effect<Settings>
   readonly setSettings: (settings: Settings) => Effect.Effect<Settings>
 }
@@ -137,6 +151,20 @@ const migrations = [
     value text not null
   )`,
   `alter table homework add column deleted integer not null default 0`,
+  `create table if not exists plan_items (
+    id text primary key,
+    homework_id text not null,
+    day text not null,
+    duration_minutes integer not null,
+    title text not null,
+    done integer not null default 0,
+    created_at text not null
+  )`,
+  `create table if not exists homework_planning (
+    homework_id text primary key,
+    status text not null,
+    at text not null
+  )`,
   `create table if not exists homework_dedup (
     self_id text not null,
     somtoday_id text not null,
@@ -176,6 +204,32 @@ const chatMessageFromRow = (row: ChatMessageRow): ChatMessage => ({
   id: row.id,
   role: row.role as ChatMessage["role"],
   content: row.content,
+  createdAt: row.created_at
+})
+
+interface PlanItemRow {
+  readonly id: string
+  readonly homework_id: string
+  readonly subject: string
+  readonly description: string
+  readonly due_date: string
+  readonly day: string
+  readonly duration_minutes: number
+  readonly title: string
+  readonly done: number
+  readonly created_at: string
+}
+
+const planItemFromRow = (row: PlanItemRow): PlanItem => ({
+  id: row.id,
+  homeworkId: row.homework_id,
+  subject: row.subject,
+  homeworkDescription: row.description,
+  dueDate: row.due_date,
+  day: row.day,
+  durationMinutes: row.duration_minutes,
+  title: row.title,
+  done: row.done === 1,
   createdAt: row.created_at
 })
 
@@ -472,6 +526,7 @@ const makeStore = Effect.gen(function* () {
           yield* sql`update homework set done = 1 where id = ${somtodayId}`
         }
         yield* sql`update homework set deleted = 1 where id = ${selfId}`
+        yield* sql`delete from plan_items where homework_id = ${selfId}`
         yield* store.recordDedupVerdict(selfId, somtodayId, "same")
         return true
       }).pipe(Effect.orDie),
@@ -483,6 +538,11 @@ const makeStore = Effect.gen(function* () {
           (rows[0]?.n ?? 0) === 0
             ? Effect.succeed(false)
             : sql`update homework set done = ${done ? 1 : 0} where id = ${id}`.pipe(
+              Effect.andThen(
+                done
+                  ? sql`update plan_items set done = 1 where homework_id = ${id}`
+                  : Effect.void
+              ),
               Effect.map(() => true)
             )
         ),
@@ -495,7 +555,10 @@ const makeStore = Effect.gen(function* () {
         Effect.flatMap((rows) =>
           (rows[0]?.n ?? 0) === 0
             ? Effect.succeed(false)
-            : sql`update homework set deleted = 1 where id = ${id}`.pipe(Effect.map(() => true))
+            : sql`update homework set deleted = 1 where id = ${id}`.pipe(
+              Effect.andThen(sql`delete from plan_items where homework_id = ${id}`),
+              Effect.map(() => true)
+            )
         ),
         Effect.orDie
       ),
@@ -605,6 +668,100 @@ const makeStore = Effect.gen(function* () {
         Effect.asVoid,
         Effect.orDie
       ),
+
+    planItemsBetween: (fromDate, toDateExclusive) =>
+      sql<PlanItemRow>`
+        select p.id, p.homework_id, h.subject, h.description, h.due_date, p.day,
+               p.duration_minutes, p.title, p.done, p.created_at
+        from plan_items p join homework h on h.id = p.homework_id
+        where p.day >= ${fromDate} and p.day < ${toDateExclusive} and h.deleted = 0
+        order by p.day asc, p.created_at asc`.pipe(
+        Effect.map((rows) => rows.map(planItemFromRow)),
+        Effect.orDie
+      ),
+
+    planItemsForHomework: (homeworkId) =>
+      sql<PlanItemRow>`
+        select p.id, p.homework_id, h.subject, h.description, h.due_date, p.day,
+               p.duration_minutes, p.title, p.done, p.created_at
+        from plan_items p join homework h on h.id = p.homework_id
+        where p.homework_id = ${homeworkId}
+        order by p.day asc, p.created_at asc`.pipe(
+        Effect.map((rows) => rows.map(planItemFromRow)),
+        Effect.orDie
+      ),
+
+    setPlan: (homeworkId, items) =>
+      Effect.gen(function* () {
+        yield* sql`delete from plan_items where homework_id = ${homeworkId}`
+        const now = new Date().toISOString()
+        let i = 0
+        for (const item of items) {
+          // keep insertion order stable within a day
+          const createdAt = new Date(Date.parse(now) + i++).toISOString()
+          yield* sql`insert into plan_items (id, homework_id, day, duration_minutes, title, done, created_at)
+            values (${crypto.randomUUID()}, ${homeworkId}, ${item.day}, ${Math.round(item.durationMinutes)},
+                    ${item.title}, 0, ${createdAt})`
+        }
+        yield* store.setPlanningStatus(homeworkId, "planned")
+        return yield* store.planItemsForHomework(homeworkId)
+      }).pipe(Effect.orDie),
+
+    setPlanItemDone: (id, done) =>
+      Effect.gen(function* () {
+        const rows = yield* sql<{ readonly homework_id: string }>`
+          select homework_id from plan_items where id = ${id}`
+        const homeworkId = rows[0]?.homework_id
+        if (homeworkId === undefined) return false
+        yield* sql`update plan_items set done = ${done ? 1 : 0} where id = ${id}`
+        // all sessions done → the homework itself is done (and vice versa when reopened)
+        const open = yield* sql<{ readonly n: number }>`
+          select count(*) as n from plan_items where homework_id = ${homeworkId} and done = 0`
+        yield* sql`update homework set done = ${(open[0]?.n ?? 0) === 0 ? 1 : 0} where id = ${homeworkId}`
+        return true
+      }).pipe(Effect.orDie),
+
+    movePlanItem: (id, day) =>
+      sql`update plan_items set day = ${day} where id = ${id}`.pipe(
+        Effect.map(() => true),
+        Effect.orDie
+      ),
+
+    setPlanningStatus: (homeworkId, status) =>
+      sql`insert into homework_planning (homework_id, status, at)
+        values (${homeworkId}, ${status}, ${new Date().toISOString()})
+        on conflict(homework_id) do update set status = excluded.status, at = excluded.at`
+        .pipe(Effect.asVoid, Effect.orDie),
+
+    unplannedHomework: (fromDate) =>
+      sql<HomeworkRow>`
+        select h.* from homework h
+        where h.deleted = 0 and h.done = 0 and h.due_date >= ${fromDate}
+          and not exists (select 1 from homework_planning s where s.homework_id = h.id)
+        order by h.due_date asc`.pipe(
+        Effect.map((rows) => rows.map(homeworkFromRow)),
+        Effect.orDie
+      ),
+
+    dayLoads: (fromDate, toDateExclusive) =>
+      Effect.gen(function* () {
+        const lessons = yield* sql<{ readonly day: string; readonly n: number }>`
+          select substr(start, 1, 10) as day, count(*) as n from lessons
+          where start >= ${fromDate} and start < ${toDateExclusive} and cancelled = 0
+          group by day`
+        const planned = yield* sql<{ readonly day: string; readonly minutes: number }>`
+          select day, sum(duration_minutes) as minutes from plan_items
+          where day >= ${fromDate} and day < ${toDateExclusive} and done = 0
+          group by day`
+        const lessonMap = new Map(lessons.map((r) => [r.day, r.n]))
+        const plannedMap = new Map(planned.map((r) => [r.day, r.minutes]))
+        const days: Array<{ day: string; lessons: number; plannedMinutes: number }> = []
+        for (let d = new Date(`${fromDate}T12:00:00`); toDateOnly(d) < toDateExclusive; d.setDate(d.getDate() + 1)) {
+          const day = toDateOnly(d)
+          days.push({ day, lessons: lessonMap.get(day) ?? 0, plannedMinutes: plannedMap.get(day) ?? 0 })
+        }
+        return days
+      }).pipe(Effect.orDie),
 
     getSettings: sql<{ readonly value: string }>`
       select value from meta where key = 'settings'`.pipe(

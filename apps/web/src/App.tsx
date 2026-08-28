@@ -9,6 +9,7 @@ import { healthAtom, settingsAtom, weekAtom } from "./atoms.ts"
 import { ChangesPage } from "./ChangesPage.tsx"
 import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
+import { PlanningPage } from "./PlanningPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
 import { addDays, WeekGrid } from "./WeekGrid.tsx"
 
@@ -53,10 +54,10 @@ export const App = () => {
     refresh()
   }
 
-  // week navigation always lands on the rooster view, also from other pages
+  // week navigation stays on rooster/planning, and returns there from other pages
   const navigate = (update: (anchor: string) => string) => {
     setAnchor(update)
-    if (route !== "") window.location.hash = ""
+    if (route !== "" && route !== "#planning") window.location.hash = ""
   }
 
   return (
@@ -87,6 +88,7 @@ export const App = () => {
         {health && <span className="version">{health.version}</span>}
         <span className="pages">
           <a className={`page-link${route === "" ? " active" : ""}`} href="#">📅 rooster</a>
+          <a className={`page-link${route === "#planning" ? " active" : ""}`} href="#planning">🗓️ planning</a>
           <a className={`page-link${route === "#chat" ? " active" : ""}`} href="#chat">💬 chat</a>
           <a
             className={`page-link${route === "#instellingen" ? " active" : ""}`}
@@ -101,7 +103,8 @@ export const App = () => {
       {route === "#chat" && <ChatPage initialQuestion={params.get("q")} />}
       {route === "#logs" && <LogsPage />}
       {route === "#wijzigingen" && <ChangesPage />}
-      {!["#instellingen", "#chat", "#logs", "#wijzigingen"].includes(route) && week && (
+      {route === "#planning" && <PlanningPage anchor={anchor} />}
+      {!["#instellingen", "#chat", "#logs", "#wijzigingen", "#planning"].includes(route) && week && (
         <main className="rooster">
           <WeekGrid week={week} periods={periods} onToggle={toggle} onDelete={remove} />
         </main>

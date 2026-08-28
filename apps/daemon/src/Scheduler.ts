@@ -3,6 +3,7 @@ import * as Layer from "effect/Layer"
 import * as Schedule from "effect/Schedule"
 import { planHomeworkPrompts } from "./Buddy.ts"
 import { dedupHomework } from "./HomeworkDedup.ts"
+import { planUnplannedHomework } from "./Planner.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { addDays, toDateOnly } from "./time.ts"
@@ -46,7 +47,8 @@ const syncJob = Effect.gen(function* () {
           dedupHomework.pipe(
             Effect.tap((n) => (n > 0 ? Effect.log(`merged ${n} duplicate homework item(s)`) : Effect.void))
           )
-        )
+        ),
+        Effect.andThen(planJob)
       )
     ),
     Effect.catchTag("SomtodayError", (error) =>
@@ -68,6 +70,10 @@ const syncJob = Effect.gen(function* () {
     )
   )
 })
+
+const planJob = planUnplannedHomework.pipe(
+  Effect.tap((n) => (n > 0 ? Effect.log(`planned ${n} homework item(s)`) : Effect.void))
+)
 
 const promptJob = planHomeworkPrompts.pipe(
   Effect.tap((created) =>
@@ -100,6 +106,7 @@ export const SchedulerLive = Layer.effectDiscard(
     Effect.all([
       syncJob.pipe(Effect.schedule(Schedule.spaced("30 minutes"))),
       promptJob.pipe(Effect.schedule(Schedule.spaced("5 minutes"))),
+      planJob.pipe(Effect.schedule(Schedule.spaced("5 minutes"))),
       updateCheckJob.pipe(Effect.schedule(Schedule.spaced("1 day"))),
       // run everything once at startup, before the first spaced tick
       syncJob,

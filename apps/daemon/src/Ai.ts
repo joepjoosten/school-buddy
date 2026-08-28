@@ -6,6 +6,7 @@ import type {
   ChatStatus,
   HomeworkInput,
   HomeworkItem,
+  PlanItemInput,
   Lesson,
   Settings
 } from "@school-buddy/shared"
@@ -55,6 +56,16 @@ export interface AiShape {
     readonly self: HomeworkItem
     readonly somtoday: HomeworkItem
   }) => Effect.Effect<"same" | "different" | "unsure">
+  /**
+   * Propose plan sessions for a homework item. `question` is set when the
+   * model wants to ask the student first; items are then empty.
+   */
+  readonly planHomework: (options: {
+    readonly homework: HomeworkItem
+    readonly today: string
+    readonly preference: "day-before" | "day-given"
+    readonly days: ReadonlyArray<{ day: string; lessons: number; plannedMinutes: number }>
+  }) => Effect.Effect<{ items: Array<PlanItemInput>; question: string | null } | null>
   readonly status: Effect.Effect<ChatStatus>
   /** Persisted transcript (recent messages) + rolling summary of earlier days. */
   readonly history: Effect.Effect<ChatHistory>
@@ -72,6 +83,8 @@ Je helpt met het rooster, huiswerk en planning, en je mag ook gewoon schoolwerk 
 Antwoord kort, concreet en vriendelijk. Antwoord in de taal waarin de leerling schrijft (meestal Nederlands).
 Gebruik de tools om het echte rooster, huiswerk en roosterwijzigingen op te halen, en om huiswerk toe te voegen, af te vinken of te verwijderen; verzin nooit roostergegevens.
 Gebruik huiswerk_openstaand om de juiste id's te vinden voordat je afvinkt of verwijdert.
+Elk huiswerkitem krijgt een planning van leersessies (dag + duur); gebruik planning_overzicht, planning_maken, planning_verplaatsen en planning_afvinken als de leerling over zijn planning praat.
+Als je eerder in dit gesprek een vraag stelde over de planning van huiswerk en de leerling antwoordt, maak dan de planning met planning_maken (het homeworkId staat in je vraag).
 Als je eerder in dit gesprek vroeg of twee huiswerkitems hetzelfde zijn en de leerling antwoordt: gebruik huiswerk_samenvoegen bij "ja" en huiswerk_apart_houden bij "nee" (de id's staan in je vraag).
 Vandaag is ${toDateOnly(new Date())}.${
     summary === null
@@ -137,6 +150,33 @@ const makeAi = Effect.gen(function* () {
       parameters: Schema.Struct({ selfId: Schema.String, somtodayId: Schema.String }),
       success: Schema.String
     }),
+    Tool.make("planning_overzicht", {
+      description: "Geeft de planning (leersessies per dag, met id's) van vandaag tot 2 weken vooruit.",
+      success: Schema.String
+    }),
+    Tool.make("planning_maken", {
+      description:
+        "Maakt of vervangt de planning voor een huiswerkitem: een lijst sessies met dag (YYYY-MM-DD), duur in minuten en korte titel. Gebruik dit nadat de leerling je vraag over de planning beantwoord heeft, of als hij een andere planning wil.",
+      parameters: Schema.Struct({
+        homeworkId: Schema.String,
+        items: Schema.Array(Schema.Struct({
+          day: Schema.String,
+          durationMinutes: Schema.Number,
+          title: Schema.String
+        }))
+      }),
+      success: Schema.String
+    }),
+    Tool.make("planning_verplaatsen", {
+      description: "Verplaatst een planningsessie (id) naar een andere dag (YYYY-MM-DD).",
+      parameters: Schema.Struct({ id: Schema.String, day: Schema.String }),
+      success: Schema.String
+    }),
+    Tool.make("planning_afvinken", {
+      description: "Vinkt een planningsessie af (done=true) of zet hem weer open (done=false).",
+      parameters: Schema.Struct({ id: Schema.String, done: Schema.Boolean }),
+      success: Schema.String
+    }),
     Tool.make("huiswerk_verwijderen", {
       description:
         "Verwijdert een huiswerkitem. Alleen gebruiken als de leerling daar duidelijk om vraagt.",
@@ -190,6 +230,30 @@ const makeAi = Effect.gen(function* () {
       store
         .recordDedupVerdict(selfId, somtodayId, "different")
         .pipe(Effect.map(() => "Genoteerd: dit zijn twee verschillende opdrachten.")),
+    planning_overzicht: () =>
+      store
+        .planItemsBetween(toDateOnly(new Date()), toDateOnly(addDays(new Date(), 14)))
+        .pipe(
+          Effect.map((items) =>
+            items.length === 0
+              ? "Nog niets ingepland."
+              : items
+                .map((p) =>
+                  `${p.day} ${p.durationMinutes} min ${p.done ? "✅" : "⬜"} ${p.title} [${p.subject}, voor ${p.dueDate}] (id ${p.id})`
+                )
+                .join("\n")
+          )
+        ),
+    planning_maken: ({ homeworkId, items }) =>
+      store
+        .setPlan(homeworkId, items)
+        .pipe(Effect.map((created) => `Ingepland: ${created.map((p) => `${p.day} ${p.durationMinutes} min`).join(", ")}`)),
+    planning_verplaatsen: ({ id, day }) =>
+      store.movePlanItem(id, day).pipe(Effect.map(() => `Verplaatst naar ${day}.`)),
+    planning_afvinken: ({ id, done }) =>
+      store
+        .setPlanItemDone(id, done)
+        .pipe(Effect.map((ok) => (ok ? (done ? "Afgevinkt ✅" : "Weer open gezet") : "Geen sessie met dat id."))),
     huiswerk_verwijderen: ({ id }) =>
       store
         .deleteHomework(id)
@@ -385,6 +449,62 @@ Geef same=true als het (vrijwel zeker) dezelfde opdracht is, met een confidence 
       return verdict.same ? ("same" as const) : ("different" as const)
     })
 
+  const PlanProposal = Schema.Struct({
+    items: Schema.Array(Schema.Struct({
+      day: Schema.String,
+      durationMinutes: Schema.Number,
+      title: Schema.String
+    })),
+    /** ask the student this instead of planning, when genuinely unsure */
+    question: Schema.NullOr(Schema.String)
+  })
+
+  const planHomework: AiShape["planHomework"] = ({ homework, today, preference, days }) =>
+    Effect.gen(function* () {
+      const settings = yield* store.getSettings
+      if (!settings.chatEnabled) return null
+      const apiKey = yield* providerKey(settings.aiProvider)
+      if (apiKey === null) return null
+      const model = yield* resolveModel(settings)
+      const dayList = days
+        .map((d) => `- ${d.day}: ${d.lessons} lessen, al ${d.plannedMinutes} min gepland`)
+        .join("\n")
+      const run = LanguageModel.generateObject({
+        objectName: "planning",
+        schema: PlanProposal,
+        prompt: `Je maakt een leerplanning voor een middelbare scholier (4 vwo).
+Vandaag is ${today}. Huiswerk: vak "${homework.subject}", inleveren/af op ${homework.dueDate}: "${homework.description}".
+Voorkeur van de leerling voor gewoon huiswerk: ${
+          preference === "day-before" ? "de dag vóór de inleverdatum" : "op de dag dat het opgegeven is (zo snel mogelijk)"
+        }.
+
+Beschikbare dagen (alleen deze; weekend mag, maar plan dan niet alles op zondag):
+${dayList}
+
+Regels:
+- Een toets, SO, proefwerk of overhoring ("[TOETS]"): meerdere korte sessies (bv. 3 × 15–25 min) verspreid over de dagen ervoor, de laatste sessie de dag vóór de toets. Herhalen werkt beter dan alles in één keer.
+- Gewoon huiswerk (opgaven, lezen, meenemen): één sessie van 15–45 min op de voorkeursdag.
+- Grote opdrachten (PO, werkstuk, presentatie): meerdere sessies van 30–60 min.
+- Spreid werk over dagen met minder lessen en minder geplande minuten.
+- Nooit op of na de inleverdatum plannen.
+- Titel: kort en concreet, bv. "Frans woordjes H2 leren (1/3)".
+Als je echt niet kunt inschatten wat er nodig is (bv. onduidelijk hoe groot het is), vul dan alleen "question" in met één korte vraag aan de leerling en laat items leeg.`
+      })
+      const result = yield* run.pipe(
+        Effect.provide(providerLayer(settings.aiProvider, model, apiKey)),
+        Effect.map((r) => r.value),
+        Effect.catchCause((cause) =>
+          Effect.logWarning(`planHomework failed: ${cause}`).pipe(Effect.map(() => null))
+        )
+      )
+      if (result === null) return null
+      const allowed = new Set(days.map((d) => d.day))
+      const items = result.items
+        .filter((i) => allowed.has(i.day) && i.durationMinutes >= 5 && i.durationMinutes <= 180)
+        .map((i) => ({ ...i, durationMinutes: Math.round(i.durationMinutes) }))
+      return { items, question: result.question }
+    })
+
   const history: Effect.Effect<ChatHistory> = Effect.gen(function* () {
     const summary = yield* store.getMeta(CHAT_SUMMARY_KEY)
     const messages = yield* store.recentChatMessages(200)
@@ -434,7 +554,7 @@ of anders de eerstvolgende les van het vak, of anders morgen. Maak de beschrijvi
       }
     })
 
-  const shape: AiShape = { chat, interpretHomework, judgeSameHomework, status, models, history }
+  const shape: AiShape = { chat, interpretHomework, judgeSameHomework, planHomework, status, models, history }
   return shape
 })
 

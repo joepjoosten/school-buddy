@@ -10,6 +10,7 @@ import {
   LogsResponse,
   HomeworkInput,
   HomeworkItem,
+  PlanningWeek,
   Prompt,
   PromptAnswer,
   RosterChange,
@@ -46,6 +47,25 @@ const homework = HttpApiGroup.make("homework").add(
   HttpApiEndpoint.post("remove", "/api/homework/delete", {
     payload: Schema.Struct({ id: Schema.String }),
     success: Schema.Boolean
+  })
+)
+
+const planning = HttpApiGroup.make("planning").add(
+  HttpApiEndpoint.get("week", "/api/planning", {
+    query: { date: Schema.optional(Schema.String) },
+    success: PlanningWeek
+  }),
+  HttpApiEndpoint.post("setDone", "/api/planning/done", {
+    payload: Schema.Struct({ id: Schema.String, done: Schema.Boolean }),
+    success: Schema.Boolean
+  }),
+  HttpApiEndpoint.post("move", "/api/planning/move", {
+    payload: Schema.Struct({ id: Schema.String, day: Schema.String }),
+    success: Schema.Boolean
+  }),
+  HttpApiEndpoint.post("replan", "/api/planning/replan", {
+    payload: Schema.Struct({ homeworkId: Schema.String }),
+    success: ActionResult
   })
 )
 
@@ -141,6 +161,7 @@ const health = HttpApiGroup.make("health").add(
 export const Api = HttpApi.make("school-buddy").add(
   rooster,
   homework,
+  planning,
   prompts,
   signals,
   chat,

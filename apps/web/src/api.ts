@@ -8,6 +8,7 @@ import {
   Health,
   HomeworkItem,
   LogsResponse,
+  PlanningWeek,
   RosterChange,
   School,
   UpdateCheck,
@@ -87,6 +88,18 @@ export const fetchAiModels = request(AiModels, "/api/ai/models")
 
 export const fetchLogs = (minutes: number) =>
   request(LogsResponse, `/api/logs?minutes=${minutes}`)
+
+export const fetchPlanning = (date: string) =>
+  request(PlanningWeek, `/api/planning?date=${date}`)
+
+export const setPlanItemDone = (id: string, done: boolean) =>
+  request(Schema.Boolean, "/api/planning/done", post({ id, done }))
+
+export const movePlanItem = (id: string, day: string) =>
+  request(Schema.Boolean, "/api/planning/move", post({ id, day }))
+
+export const replanHomework = (homeworkId: string) =>
+  request(ActionResult, "/api/planning/replan", post({ homeworkId }))
 
 export const fetchRosterChanges = (limit = 200) =>
   request(Schema.Array(RosterChange), `/api/roster/changes?limit=${limit}`)

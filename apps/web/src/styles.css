@@ -216,3 +216,25 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .kind-moved { background: #e0e7ff; color: #3730a3; }
 .kind-published { background: #e5e7eb; color: #374151; }
 .change-json { background: #111827; color: #d1d5db; border-radius: 8px; padding: 0.5rem; font-size: 0.7rem; margin: 0.4rem 0 0; overflow-x: auto; }
+
+/* --- planning ------------------------------------------------------------- */
+.planning { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-top: 1rem; }
+.plan-day { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; padding: 0.5rem; min-height: 8rem; }
+.plan-day.today { background: #e8ecff; border-color: #a5b4fc; }
+.plan-day.past { opacity: 0.6; }
+.plan-day h3 { margin: 0 0 0.4rem; font-size: 0.85rem; text-transform: capitalize; display: flex; gap: 0.3rem; align-items: baseline; }
+.plan-day h3 small { color: #8a94ab; font-weight: 400; }
+.plan-total { margin-left: auto; font-size: 0.7rem; color: #4f46e5; font-weight: 600; }
+.plan-day .empty { color: #c5cbd8; text-align: center; font-size: 0.8rem; }
+.plan-item { background: #fdf4ff; border-left: 3px solid #a855f7; border-radius: 8px; padding: 0.35rem 0.45rem; margin-bottom: 0.4rem; font-size: 0.78rem; }
+.plan-item.done { opacity: 0.5; }
+.plan-item.done .plan-title { text-decoration: line-through; }
+.plan-item label { display: flex; gap: 0.35rem; align-items: baseline; cursor: pointer; }
+.plan-item .plan-title { font-weight: 500; }
+.plan-meta { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; color: #6b7280; font-size: 0.7rem; flex-wrap: wrap; }
+.plan-meta .subject { font-weight: 700; text-transform: uppercase; color: #7e22ce; }
+.plan-meta .duration { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 0 0.4rem; font-weight: 600; }
+.plan-actions { margin-left: auto; display: flex; gap: 0.1rem; opacity: 0; }
+.plan-item:hover .plan-actions { opacity: 1; }
+.plan-actions button { padding: 0 0.3rem; font-size: 0.7rem; border-radius: 5px; }
+@media (max-width: 1000px) { .planning { grid-template-columns: repeat(2, 1fr); } }

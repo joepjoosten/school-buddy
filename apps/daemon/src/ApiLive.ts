@@ -6,11 +6,12 @@ import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
 import { dedupHomework } from "./HomeworkDedup.ts"
+import { planHomework } from "./Planner.ts"
 import { collectRecentLogs } from "./logs.ts"
 import { fetchLatestVersion, startDetachedUpdate } from "./update.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
-import { toDateOnly } from "./time.ts"
+import { toDateOnly, weekBoundsOf } from "./time.ts"
 import { VERSION } from "./version.ts"
 
 const RoosterLive = HttpApiBuilder.group(Api, "rooster", (handlers) =>
@@ -42,6 +43,35 @@ const HomeworkLive = HttpApiBuilder.group(Api, "homework", (handlers) =>
       }))
     .handle("remove", ({ payload }) =>
       Store.pipe(Effect.flatMap((store) => store.deleteHomework(payload.id)))))
+
+const PlanningLive = HttpApiBuilder.group(Api, "planning", (handlers) =>
+  handlers
+    .handle("week", ({ query }) =>
+      Effect.gen(function* () {
+        const store = yield* Store
+        const bounds = weekBoundsOf(query.date ?? toDateOnly(new Date()))
+        const items = yield* store.planItemsBetween(bounds.monday, bounds.nextMonday)
+        return { monday: bounds.monday, items }
+      }))
+    .handle("setDone", ({ payload }) =>
+      Store.pipe(Effect.flatMap((store) => store.setPlanItemDone(payload.id, payload.done))))
+    .handle("move", ({ payload }) =>
+      Store.pipe(Effect.flatMap((store) => store.movePlanItem(payload.id, payload.day))))
+    .handle("replan", ({ payload }) =>
+      Effect.gen(function* () {
+        const store = yield* Store
+        const homework = yield* store.getHomework(payload.homeworkId)
+        if (homework === null) return { ok: false, message: "Huiswerk niet gevonden" }
+        const outcome = yield* planHomework(homework)
+        return {
+          ok: true,
+          message: outcome === "planned"
+            ? "Opnieuw ingepland"
+            : outcome === "asked"
+            ? "De buddy heeft een vraag gesteld in de chat"
+            : "Niet ingepland (inleverdatum is al geweest)"
+        }
+      })))
 
 const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
   handlers
@@ -214,6 +244,7 @@ export const ApiLive = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([
     RoosterLive,
     HomeworkLive,
+    PlanningLive,
     PromptsLive,
     SignalsLive,
     ChatLive,

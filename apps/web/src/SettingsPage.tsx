@@ -417,6 +417,50 @@ const UpdateSection = () => {
   )
 }
 
+const PlanningSection = () => {
+  const settingsResult = useAtomValue(settingsAtom)
+  const refreshSettings = useAtomRefresh(settingsAtom)
+  const stored = AsyncResult.isSuccess(settingsResult) ? settingsResult.value : null
+  const [saved, setSaved] = useState(false)
+  if (stored === null) return <section><h2>Planning</h2><p>Laden…</p></section>
+  const choose = async (planningPreference: Settings["planningPreference"]) => {
+    await runEffect(saveSettings({ ...stored, planningPreference }))
+    refreshSettings()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+  return (
+    <section>
+      <h2>Planning</h2>
+      <p className="hint">
+        Elk huiswerkitem wordt automatisch ingepland in leersessies. Toetsen worden gespreid
+        over meerdere dagen; gewoon huiswerk komt op je voorkeursdag.
+      </p>
+      <div className="settings-form">
+        <label className="row">
+          <input
+            type="radio"
+            name="planningPreference"
+            checked={stored.planningPreference === "day-before"}
+            onChange={() => choose("day-before")}
+          />
+          De dag vóór het af moet zijn
+        </label>
+        <label className="row">
+          <input
+            type="radio"
+            name="planningPreference"
+            checked={stored.planningPreference === "day-given"}
+            onChange={() => choose("day-given")}
+          />
+          Zo snel mogelijk, op de dag dat het opgegeven is
+        </label>
+        {saved && <span>✅ Opgeslagen</span>}
+      </div>
+    </section>
+  )
+}
+
 const LestijdenSection = () => {
   const settingsResult = useAtomValue(settingsAtom)
   const refreshSettings = useAtomRefresh(settingsAtom)
@@ -481,6 +525,7 @@ export const SettingsPage = () => (
   <div className="settings-page">
     <SomtodaySection />
     <PromptsSection />
+    <PlanningSection />
     <AiSection />
     <LestijdenSection />
     <UpdateSection />
