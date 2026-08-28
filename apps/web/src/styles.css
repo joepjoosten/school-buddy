@@ -114,13 +114,14 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-day.today { background-color: #e8ecff; }
 .cal-lesson {
   position: absolute; box-sizing: border-box; overflow: hidden;
-  background: #e0e7ff; border-left: 3px solid #6366f1; border-radius: 6px;
+  background: #c7d2fe; border: 1px solid #a5b4fc; border-left: 3px solid #4f46e5;
+  border-radius: 6px; box-shadow: 0 1px 2px rgba(30, 41, 59, 0.15);
   padding: 0.2rem 0.35rem; font-size: 0.72rem; line-height: 1.25;
   display: flex; flex-direction: column;
 }
-.cal-lesson .time { color: #4f46e5; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cal-lesson .time { color: #3730a3; font-weight: 700; font-variant-numeric: tabular-nums; }
 .cal-lesson .title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-lesson .loc { color: #6b7280; }
+.cal-lesson .loc { color: #4b5563; }
 .cal-lesson.compact { padding: 0.05rem 0.3rem; flex-direction: row; gap: 0.3rem; align-items: center; }
 .cal-lesson.compact .loc { display: none; }
 .cal-lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
