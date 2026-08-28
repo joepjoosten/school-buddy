@@ -28,7 +28,12 @@ const fieldDiffs = (a: Lesson, b: Lesson): Array<string> => {
   const diffs: Array<string> = []
   if (a.start !== b.start || a.end !== b.end) {
     diffs.push(`tijd ${timeOf(a.start)}–${timeOf(a.end)} → ${timeOf(b.start)}–${timeOf(b.end)}`)
-  } else if (a.periodStart !== b.periodStart || a.periodEnd !== b.periodEnd) {
+  } else if (
+    // only a real period change counts; null → value is just data that was
+    // missing before (e.g. rows written by an older version)
+    a.periodStart !== null && b.periodStart !== null &&
+    (a.periodStart !== b.periodStart || a.periodEnd !== b.periodEnd)
+  ) {
     diffs.push(`${periodLabel(a)} → ${periodLabel(b)}`)
   }
   if ((a.location ?? "") !== (b.location ?? "")) {

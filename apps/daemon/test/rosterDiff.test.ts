@@ -59,6 +59,12 @@ describe("diffLessons", () => {
     expect(changes[0]!.kind).toBe("published")
   })
 
+  test("period appearing where it was null is not a change", () => {
+    const before = lesson({ id: "1", periodStart: null, periodEnd: null })
+    const after = lesson({ id: "1" })
+    expect(diffLessons([before], [after], window)).toEqual([])
+  })
+
   test("dates outside the window are ignored", () => {
     const changes = diffLessons([lesson({ id: "1" })], [], { from: "2026-09-08", until: "2026-12-01" })
     expect(changes).toEqual([])
