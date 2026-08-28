@@ -1,12 +1,14 @@
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { School, Settings } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { AiProvider as AiProviderSchema } from "@school-buddy/shared"
 import {
+  checkUpdate,
   connectFinish,
   connectStart,
   runEffect,
+  runUpdate,
   saveSettings,
   searchSchools,
   sendChat,
@@ -337,11 +339,61 @@ const AiSection = () => {
 
 const UpdateSection = () => {
   const healthResult = useAtomValue(healthAtom)
+  const refreshHealth = useAtomRefresh(healthAtom)
   const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
+  const [checking, setChecking] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const versionBeforeUpdate = useRef<string | null>(null)
+
+  // while an update runs, poll until the daemon comes back with a new version
+  useEffect(() => {
+    if (!updating) return
+    const id = setInterval(refreshHealth, 3000)
+    return () => clearInterval(id)
+  }, [updating, refreshHealth])
+  useEffect(() => {
+    if (
+      updating &&
+      health !== null &&
+      versionBeforeUpdate.current !== null &&
+      health.version !== versionBeforeUpdate.current
+    ) {
+      setUpdating(false)
+      setMessage(`✅ Geüpdatet naar ${health.version}`)
+    }
+  }, [updating, health])
+
   if (health === null) return null
   const updateAvailable = health.version !== "dev" &&
     health.latestVersion !== null &&
     health.latestVersion !== health.version
+
+  const check = async () => {
+    setChecking(true)
+    setMessage(null)
+    try {
+      const result = await runEffect(checkUpdate)
+      setMessage(
+        result.latest === null
+          ? "❌ Kan GitHub niet bereiken"
+          : result.updateAvailable
+          ? `⬆️ Nieuwe versie beschikbaar: ${result.latest}`
+          : `✅ Up-to-date (${result.current})`
+      )
+      refreshHealth()
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const install = async () => {
+    versionBeforeUpdate.current = health.version
+    const result = await runEffect(runUpdate)
+    setMessage(result.ok ? `⏳ ${result.message}` : `❌ ${result.message}`)
+    if (result.ok) setUpdating(true)
+  }
+
   return (
     <section>
       <h2>Versie</h2>
@@ -349,9 +401,17 @@ const UpdateSection = () => {
         Huidige versie: <b>{health.version}</b>
         {health.latestVersion !== null && <> · nieuwste: {health.latestVersion}</>}
       </p>
-      {updateAvailable && (
-        <p>⬆️ Update beschikbaar — installeer via het 🎒-menu → "Update installeren".</p>
-      )}
+      <div className="row">
+        <button type="button" onClick={check} disabled={checking || updating}>
+          {checking ? "Bezig…" : "🔍 Check nu op updates"}
+        </button>
+        {updateAvailable && (
+          <button type="button" onClick={install} disabled={updating}>
+            {updating ? "Update loopt…" : `⬆️ Update naar ${health.latestVersion}`}
+          </button>
+        )}
+      </div>
+      {message !== null && <p>{message}</p>}
     </section>
   )
 }

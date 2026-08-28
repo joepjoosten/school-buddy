@@ -14,6 +14,7 @@ import {
   School,
   Settings,
   Signal,
+  UpdateCheck,
   WeekData
 } from "@school-buddy/shared"
 import * as Schema from "effect/Schema"
@@ -84,6 +85,15 @@ const ai = HttpApiGroup.make("ai").add(
   })
 )
 
+const update = HttpApiGroup.make("update").add(
+  HttpApiEndpoint.post("check", "/api/update/check", {
+    success: UpdateCheck
+  }),
+  HttpApiEndpoint.post("run", "/api/update/run", {
+    success: ActionResult
+  })
+)
+
 const logs = HttpApiGroup.make("logs").add(
   HttpApiEndpoint.get("recent", "/api/logs", {
     query: { minutes: Schema.optional(Schema.String) },
@@ -124,6 +134,7 @@ export const Api = HttpApi.make("school-buddy").add(
   settings,
   somtoday,
   ai,
+  update,
   logs,
   health
 )

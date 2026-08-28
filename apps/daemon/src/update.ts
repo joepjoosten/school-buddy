@@ -76,6 +76,31 @@ export const download = async (
 export const fetchLatestVersion = async (): Promise<string | null> =>
   (await fetchLatestRelease())?.tag_name ?? null
 
+/**
+ * Start the updater as a detached one-shot launchd job, so it survives the
+ * daemon restart that the installer performs (a plain child process would be
+ * killed together with the daemon's process group at `launchctl bootout`).
+ */
+export const startDetachedUpdate = (): { ok: boolean; message: string | null } => {
+  if (VERSION === "dev") {
+    return { ok: false, message: "Development-installatie — gebruik git pull." }
+  }
+  const log = `${process.env.HOME}/.school-buddy/update.log`
+  Bun.spawnSync(["launchctl", "remove", "nl.schoolbuddy.update"], {
+    stdout: "ignore",
+    stderr: "ignore"
+  })
+  const res = Bun.spawnSync([
+    "launchctl", "submit", "-l", "nl.schoolbuddy.update",
+    "-o", log, "-e", log,
+    "--", process.execPath, "update"
+  ])
+  if (res.exitCode !== 0) {
+    return { ok: false, message: "Kon de updater niet starten via launchd." }
+  }
+  return { ok: true, message: "Update gestart — de daemon herstart zodadelijk." }
+}
+
 /** CLI: `school-buddy update [--check]` */
 export const runUpdate = async (checkOnly: boolean): Promise<void> => {
   console.log(`Huidige versie: ${VERSION}`)

@@ -6,6 +6,7 @@ import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
 import { collectRecentLogs } from "./logs.ts"
+import { fetchLatestVersion, startDetachedUpdate } from "./update.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { toDateOnly } from "./time.ts"
@@ -118,6 +119,21 @@ const SettingsLive = HttpApiBuilder.group(Api, "settings", (handlers) =>
 const AiApiLive = HttpApiBuilder.group(Api, "ai", (handlers) =>
   handlers.handle("models", () => Ai.pipe(Effect.flatMap((ai) => ai.models))))
 
+const UpdateApiLive = HttpApiBuilder.group(Api, "update", (handlers) =>
+  handlers
+    .handle("check", () =>
+      Effect.gen(function* () {
+        const store = yield* Store
+        const latest = yield* Effect.promise(() => fetchLatestVersion())
+        if (latest !== null) yield* store.setMeta("update.latest", latest)
+        return {
+          current: VERSION,
+          latest,
+          updateAvailable: latest !== null && VERSION !== "dev" && latest !== VERSION
+        }
+      }))
+    .handle("run", () => Effect.sync(() => startDetachedUpdate())))
+
 const LogsApiLive = HttpApiBuilder.group(Api, "logs", (handlers) =>
   handlers.handle("recent", ({ query }) =>
     Effect.promise(() => {
@@ -191,6 +207,7 @@ export const ApiLive = HttpApiBuilder.layer(Api).pipe(
     SettingsLive,
     SomtodayApiLive,
     AiApiLive,
+    UpdateApiLive,
     LogsApiLive,
     HealthLive
   ])

@@ -9,6 +9,7 @@ import {
   HomeworkItem,
   LogsResponse,
   School,
+  UpdateCheck,
   Settings,
   WeekData
 } from "@school-buddy/shared"
@@ -83,6 +84,10 @@ export const fetchAiModels = request(AiModels, "/api/ai/models")
 
 export const fetchLogs = (minutes: number) =>
   request(LogsResponse, `/api/logs?minutes=${minutes}`)
+
+export const checkUpdate = request(UpdateCheck, "/api/update/check", { method: "POST" })
+
+export const runUpdate = request(ActionResult, "/api/update/run", { method: "POST" })
 
 /** Run a one-off mutation effect from an event handler. */
 export const runEffect = <A, E>(effect: Effect.Effect<A, E>): Promise<A> =>

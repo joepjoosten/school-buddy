@@ -179,6 +179,15 @@ export const ActionResult = Schema.Struct({
 })
 export type ActionResult = typeof ActionResult.Type
 
+// --- Updates ----------------------------------------------------------------
+
+export const UpdateCheck = Schema.Struct({
+  current: Schema.String,
+  latest: Schema.NullOr(Schema.String),
+  updateAvailable: Schema.Boolean
+})
+export type UpdateCheck = typeof UpdateCheck.Type
+
 // --- Debug logs -----------------------------------------------------------
 
 export const LogsResponse = Schema.Struct({
