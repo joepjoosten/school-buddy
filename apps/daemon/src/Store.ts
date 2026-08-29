@@ -1,4 +1,5 @@
 import type {
+  ChatAttachment,
   ChatMessage,
   HomeworkInput,
   HomeworkItem,
@@ -83,7 +84,11 @@ export interface StoreShape {
   readonly recordSignal: (signal: Signal) => Effect.Effect<void>
   readonly getMeta: (key: string) => Effect.Effect<string | null>
   readonly setMeta: (key: string, value: string) => Effect.Effect<void>
-  readonly addChatMessage: (role: ChatMessage["role"], content: string) => Effect.Effect<ChatMessage>
+  readonly addChatMessage: (
+    role: ChatMessage["role"],
+    content: string,
+    attachments?: ReadonlyArray<ChatAttachment>
+  ) => Effect.Effect<ChatMessage>
   /** most recent messages for display, oldest first */
   readonly recentChatMessages: (limit: number) => Effect.Effect<Array<ChatMessage>>
   /** messages not yet folded into the rolling summary, oldest first */
@@ -192,6 +197,7 @@ const migrations = [
     created_at text not null,
     compacted integer not null default 0
   )`,
+  `alter table chat_messages add column attachments text`,
   `create table if not exists roster_changes (
     id text primary key,
     detected_at text not null,
@@ -211,14 +217,24 @@ interface ChatMessageRow {
   readonly role: string
   readonly content: string
   readonly created_at: string
+  readonly attachments: string | null
 }
 
-const chatMessageFromRow = (row: ChatMessageRow): ChatMessage => ({
-  id: row.id,
-  role: row.role as ChatMessage["role"],
-  content: row.content,
-  createdAt: row.created_at
-})
+const chatMessageFromRow = (row: ChatMessageRow): ChatMessage => {
+  let attachments: Array<ChatAttachment> = []
+  try {
+    if (row.attachments !== null) attachments = JSON.parse(row.attachments) as Array<ChatAttachment>
+  } catch {
+    attachments = []
+  }
+  return {
+    id: row.id,
+    role: row.role as ChatMessage["role"],
+    content: row.content,
+    createdAt: row.created_at,
+    attachments
+  }
+}
 
 interface PlanItemRow {
   readonly id: string
@@ -652,16 +668,18 @@ const makeStore = Effect.gen(function* () {
       sql`insert into meta (key, value) values (${key}, ${value})
         on conflict(key) do update set value = excluded.value`.pipe(Effect.orDie),
 
-    addChatMessage: (role, content) =>
+    addChatMessage: (role, content, attachments) =>
       Effect.gen(function* () {
         const message: ChatMessage = {
           id: crypto.randomUUID(),
           role,
           content,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          attachments: attachments ?? []
         }
-        yield* sql`insert into chat_messages (id, role, content, created_at, compacted)
-          values (${message.id}, ${message.role}, ${message.content}, ${message.createdAt}, 0)`
+        yield* sql`insert into chat_messages (id, role, content, created_at, compacted, attachments)
+          values (${message.id}, ${message.role}, ${message.content}, ${message.createdAt}, 0,
+                  ${message.attachments.length === 0 ? null : JSON.stringify(message.attachments)})`
         return message
       }).pipe(Effect.orDie),
 
@@ -669,14 +687,14 @@ const makeStore = Effect.gen(function* () {
     // share a millisecond, and created_at ties would flip question and answer
     recentChatMessages: (limit) =>
       sql<ChatMessageRow>`
-        select id, role, content, created_at from chat_messages
+        select id, role, content, created_at, attachments from chat_messages
         order by rowid desc limit ${limit}`.pipe(
         Effect.map((rows) => rows.map(chatMessageFromRow).reverse()),
         Effect.orDie
       ),
 
     uncompactedChatMessages: sql<ChatMessageRow>`
-      select id, role, content, created_at from chat_messages
+      select id, role, content, created_at, attachments from chat_messages
       where compacted = 0 order by rowid asc`.pipe(
       Effect.map((rows) => rows.map(chatMessageFromRow)),
       Effect.orDie

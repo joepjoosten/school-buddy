@@ -118,8 +118,24 @@ export type Signal = typeof Signal.Type
 
 // --- Chat -----------------------------------------------------------------
 
+export const ChatAttachmentInput = Schema.Struct({
+  mediaType: Schema.String,
+  fileName: Schema.String,
+  /** base64 payload without the data: prefix */
+  data: Schema.String
+})
+export type ChatAttachmentInput = typeof ChatAttachmentInput.Type
+
+export const ChatAttachment = Schema.Struct({
+  id: Schema.String,
+  mediaType: Schema.String,
+  fileName: Schema.String
+})
+export type ChatAttachment = typeof ChatAttachment.Type
+
 export const ChatRequest = Schema.Struct({
-  message: Schema.String
+  message: Schema.String,
+  attachments: Schema.optional(Schema.Array(ChatAttachmentInput))
 })
 export type ChatRequest = typeof ChatRequest.Type
 
@@ -132,7 +148,8 @@ export const ChatMessage = Schema.Struct({
   role: Schema.Literals(["user", "assistant"]),
   content: Schema.String,
   /** ISO datetime */
-  createdAt: Schema.String
+  createdAt: Schema.String,
+  attachments: Schema.Array(ChatAttachment)
 })
 export type ChatMessage = typeof ChatMessage.Type
 

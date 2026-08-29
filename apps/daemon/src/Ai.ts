@@ -2,6 +2,7 @@ import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import type {
   AiModels,
   AiProvider,
+  ChatAttachment,
   ChatHistory,
   ChatStatus,
   HomeworkInput,
@@ -43,7 +44,10 @@ export interface AiShape {
   /** wired by the daemon so chat tools can trigger (re)planning */
   readonly setReplanner: (fn: (homeworkId: string) => Effect.Effect<string>) => void
   /** Chat with the buddy; never fails, returns a friendly Dutch message on problems. */
-  readonly chat: (message: string) => Effect.Effect<string>
+  readonly chat: (
+    message: string,
+    attachments?: ReadonlyArray<{ attachment: ChatAttachment; bytes: Uint8Array }>
+  ) => Effect.Effect<string>
   /**
    * Interpret a free-text homework answer into a structured entry.
    * Returns null when AI is unavailable or interpretation fails
@@ -427,7 +431,10 @@ ${previous === null ? "" : `Eerdere samenvatting:\n${previous}\n\n`}Nieuw gespre
     yield* store.markChatCompacted(cutoff + "\u0000")
   })
 
-  const chat = (message: string): Effect.Effect<string> =>
+  const chat = (
+    message: string,
+    attachments?: ReadonlyArray<{ attachment: ChatAttachment; bytes: Uint8Array }>
+  ): Effect.Effect<string> =>
     Effect.gen(function* () {
       const settings = yield* store.getSettings
       if (!settings.chatEnabled) {
@@ -460,17 +467,41 @@ ${previous === null ? "" : `Eerdere samenvatting:\n${previous}\n\n`}Nieuw gespre
                   options: { openai: { itemId: `msg_${m.id.replace(/-/g, "")}` } }
                 }]
               }
-              : { role: "user" as const, content: m.content }
+              : {
+                role: "user" as const,
+                content: m.attachments.length === 0
+                  ? m.content
+                  : `${m.content}\n[bijlagen: ${m.attachments.map((a) => a.fileName).join(", ")}]`
+              }
           )
         ])
         const tools = yield* toolkit.pipe(Effect.provide(handlers))
-        let response = yield* session.generateText({ prompt: message, toolkit: tools })
+        // images/PDFs ride along as file parts next to the text
+        const prompt = attachments === undefined || attachments.length === 0
+          ? message
+          : [{
+            role: "user" as const,
+            content: [
+              { type: "text" as const, text: message },
+              ...attachments.map((a) => ({
+                type: "file" as const,
+                mediaType: a.attachment.mediaType,
+                fileName: a.attachment.fileName,
+                data: a.bytes
+              }))
+            ]
+          }]
+        let response = yield* session.generateText({ prompt, toolkit: tools })
         // after tool calls the model may need another round for its final answer
         for (let i = 0; i < 3 && response.text.trim() === ""; i++) {
           response = yield* session.generateText({ prompt: [], toolkit: tools })
         }
         const reply = response.text.trim()
-        yield* store.addChatMessage("user", message)
+        yield* store.addChatMessage(
+          "user",
+          message,
+          attachments?.map((a) => a.attachment) ?? []
+        )
         yield* store.addChatMessage("assistant", reply)
         return reply
       })

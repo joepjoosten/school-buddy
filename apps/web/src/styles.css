@@ -244,3 +244,25 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .plan-item:hover .plan-actions { opacity: 1; }
 .plan-actions button { padding: 0 0.3rem; font-size: 0.7rem; border-radius: 5px; }
 @media (max-width: 1000px) { .planning { grid-template-columns: repeat(2, 1fr); } }
+
+/* --- chat attachments ----------------------------------------------------- */
+.attachments { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+.attachments.pending { margin: 0.4rem 0 0; }
+.attachment { position: relative; display: inline-flex; align-items: center; }
+.attachment img { max-height: 120px; max-width: 180px; border-radius: 8px; display: block; }
+.attachment a { color: inherit; text-decoration: none; font-size: 0.85rem; }
+.attachment-remove {
+  position: absolute; top: -6px; right: -6px; border: 1px solid #c6cede; background: #fff;
+  border-radius: 50%; width: 18px; height: 18px; padding: 0; font-size: 0.6rem; line-height: 1; cursor: pointer;
+}
+.plus-wrap { position: relative; display: inline-flex; }
+.plus { font-size: 1.1rem; line-height: 1; padding: 0.35rem 0.6rem; }
+.plus-menu {
+  position: absolute; bottom: 110%; left: 0; display: flex; flex-direction: column; gap: 0.2rem;
+  background: #fff; border: 1px solid #c6cede; border-radius: 10px; padding: 0.3rem;
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.15); z-index: 5; white-space: nowrap;
+}
+.plus-menu button { border: 0; text-align: left; font-size: 0.85rem; }
+.camera { background: #111827; border-radius: 12px; padding: 0.5rem; margin-top: 0.5rem; }
+.camera video { width: 100%; max-height: 320px; border-radius: 8px; display: block; background: #000; }
+.camera .row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; }

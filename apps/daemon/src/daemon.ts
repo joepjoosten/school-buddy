@@ -3,11 +3,12 @@ import { SqliteClient } from "@effect/sql-sqlite-bun"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { HttpRouter, HttpStaticServer } from "effect/unstable/http"
+import { HttpRouter, HttpServerResponse, HttpStaticServer } from "effect/unstable/http"
 import { existsSync, mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { Ai, AiLive } from "./Ai.ts"
 import { ApiLive } from "./ApiLive.ts"
+import { attachmentPath } from "./Attachments.ts"
 import { SchedulerLive } from "./Scheduler.ts"
 import { SomtodayLive } from "./Somtoday.ts"
 import { replanById } from "./Planner.ts"
@@ -49,6 +50,18 @@ export const daemonEffect = (): Effect.Effect<never> => {
     )
   )
 
+  // chat attachments (images/PDFs) served straight from disk
+  const AttachmentsLive = HttpRouter.add(
+    "GET",
+    "/api/attachments/:id",
+    Effect.gen(function* () {
+      const params = yield* HttpRouter.params
+      const path = params["id"] === undefined ? null : attachmentPath(params["id"])
+      if (path === null) return HttpServerResponse.text("not found", { status: 404 })
+      return yield* HttpServerResponse.file(path)
+    }).pipe(Effect.orDie)
+  )
+
   const WebLive = HttpStaticServer.layer({
     root: webDist,
     index: "index.html",
@@ -56,7 +69,7 @@ export const daemonEffect = (): Effect.Effect<never> => {
   })
 
   const MainLive = HttpRouter.serve(
-    Layer.mergeAll(ApiLive, WebLive)
+    Layer.mergeAll(ApiLive, AttachmentsLive, WebLive)
   ).pipe(
     Layer.provide(BunHttpServer.layer({ port, hostname: "127.0.0.1" })),
     Layer.provide(AppServices),

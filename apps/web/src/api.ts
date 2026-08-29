@@ -60,8 +60,10 @@ export const setHomeworkDone = (id: string, done: boolean) =>
 export const deleteHomework = (id: string) =>
   request(Schema.Boolean, "/api/homework/delete", post({ id }))
 
-export const sendChat = (message: string) =>
-  request(ChatReply, "/api/chat", post({ message }))
+export const sendChat = (
+  message: string,
+  attachments: ReadonlyArray<{ mediaType: string; fileName: string; data: string }> = []
+) => request(ChatReply, "/api/chat", post({ message, attachments }))
 
 export const fetchChatHistory = request(ChatHistory, "/api/chat/history")
 

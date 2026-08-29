@@ -1,7 +1,9 @@
+import type { ChatAttachment } from "@school-buddy/shared"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Ai, PROVIDERS } from "./Ai.ts"
+import { saveAttachment } from "./Attachments.ts"
 import { Api } from "./Api.ts"
 import { onSignal } from "./Buddy.ts"
 import { keychainDelete, keychainSet } from "./Keychain.ts"
@@ -136,7 +138,12 @@ const ChatLive = HttpApiBuilder.group(Api, "chat", (handlers) =>
     .handle("send", ({ payload }) =>
       Effect.gen(function* () {
         const ai = yield* Ai
-        const reply = yield* ai.chat(payload.message)
+        const saved: Array<{ attachment: ChatAttachment; bytes: Uint8Array }> = []
+        for (const input of payload.attachments ?? []) {
+          const stored = yield* saveAttachment(input)
+          if (stored !== null) saved.push(stored)
+        }
+        const reply = yield* ai.chat(payload.message, saved)
         return { reply }
       }))
     .handle("history", () => Ai.pipe(Effect.flatMap((ai) => ai.history))))

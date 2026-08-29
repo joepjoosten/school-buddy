@@ -5,10 +5,53 @@ import { fetchChatHistory, runEffect, sendChat } from "./api.ts"
 import { healthAtom } from "./atoms.ts"
 import { Markdown } from "./Markdown.tsx"
 
+interface Attachment {
+  readonly id?: string
+  readonly mediaType: string
+  readonly fileName: string
+  /** base64, only for not-yet-sent attachments */
+  readonly data?: string
+}
+
 interface Bubble {
   readonly who: "jij" | "buddy"
   readonly text: string
   readonly day: string
+  readonly attachments?: ReadonlyArray<Attachment>
+}
+
+const readAsBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result)
+      resolve(result.slice(result.indexOf(",") + 1))
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+
+const AttachmentChip = ({
+  attachment,
+  onRemove
+}: {
+  attachment: Attachment
+  onRemove?: () => void
+}) => {
+  const src = attachment.id !== undefined
+    ? `/api/attachments/${attachment.id}`
+    : `data:${attachment.mediaType};base64,${attachment.data ?? ""}`
+  const isImage = attachment.mediaType.startsWith("image/")
+  return (
+    <span className="attachment">
+      {isImage
+        ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={attachment.fileName} /></a>
+        : <a href={src} target="_blank" rel="noreferrer">📄 {attachment.fileName}</a>}
+      {onRemove !== undefined && (
+        <button type="button" className="attachment-remove" onClick={onRemove} title="verwijderen">✕</button>
+      )}
+    </span>
+  )
 }
 
 const dayOf = (iso: string): string => {
@@ -31,6 +74,66 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
   const health = AsyncResult.isSuccess(healthResult) ? healthResult.value : null
   const bottomRef = useRef<HTMLDivElement>(null)
   const consumedInitial = useRef(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [pending, setPending] = useState<ReadonlyArray<Attachment>>([])
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [camera, setCamera] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    setCamera(false)
+  }
+
+  const startCamera = async () => {
+    setMenuOpen(false)
+    setCameraError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      streamRef.current = stream
+      setCamera(true)
+      // the video element only exists after this render
+      setTimeout(() => {
+        if (videoRef.current !== null) {
+          videoRef.current.srcObject = stream
+          void videoRef.current.play()
+        }
+      }, 0)
+    } catch (error) {
+      setCameraError(`Camera niet beschikbaar: ${String(error)}`)
+    }
+  }
+
+  const takePhoto = () => {
+    const video = videoRef.current
+    if (video === null) return
+    const canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext("2d")?.drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85)
+    setPending((p) => [...p, {
+      mediaType: "image/jpeg",
+      fileName: `foto-${new Date().toISOString().slice(11, 19).replace(/:/g, "")}.jpg`,
+      data: dataUrl.slice(dataUrl.indexOf(",") + 1)
+    }])
+    stopCamera()
+  }
+
+  const addFiles = async (files: FileList | null) => {
+    setMenuOpen(false)
+    if (files === null) return
+    const added: Array<Attachment> = []
+    for (const file of Array.from(files)) {
+      added.push({ mediaType: file.type || "application/octet-stream", fileName: file.name, data: await readAsBase64(file) })
+    }
+    setPending((p) => [...p, ...added])
+  }
+
+  useEffect(() => () => stopCamera(), [])
 
   // persisted transcript from the daemon (survives reloads, tabs and restarts)
   useEffect(() => {
@@ -41,7 +144,8 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
           h.messages.map((m) => ({
             who: m.role === "user" ? "jij" : "buddy",
             text: m.content,
-            day: dayOf(m.createdAt)
+            day: dayOf(m.createdAt),
+            attachments: m.attachments
           }))
         )
         setLoaded(true)
@@ -54,11 +158,16 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, busy])
 
-  const ask = async (message: string) => {
-    setMessages((m) => [...m, { who: "jij", text: message, day: today() }])
+  const ask = async (message: string, attachments: ReadonlyArray<Attachment> = []) => {
+    setMessages((m) => [...m, { who: "jij", text: message, day: today(), attachments }])
     setBusy(true)
     try {
-      const { reply } = await runEffect(sendChat(message))
+      const { reply } = await runEffect(
+        sendChat(
+          message,
+          attachments.map((a) => ({ mediaType: a.mediaType, fileName: a.fileName, data: a.data ?? "" }))
+        )
+      )
       setMessages((m) => [...m, { who: "buddy", text: reply, day: today() }])
     } catch (error) {
       setMessages((m) => [
@@ -85,9 +194,11 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const message = input.trim()
-    if (message === "" || busy) return
+    if ((message === "" && pending.length === 0) || busy) return
+    const attachments = pending
     setInput("")
-    await ask(message)
+    setPending([])
+    await ask(message === "" ? "Kijk eens naar deze bijlage." : message, attachments)
   }
 
   return (
@@ -118,6 +229,11 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
               <div className="chat-day">{dayLabel(m.day)}</div>
             )}
             <div className={`bubble ${m.who}`}>
+              {m.attachments !== undefined && m.attachments.length > 0 && (
+                <span className="attachments">
+                  {m.attachments.map((a, ai) => <AttachmentChip key={ai} attachment={a} />)}
+                </span>
+              )}
               {m.who === "buddy" ? <Markdown text={m.text} /> : m.text}
             </div>
           </div>
@@ -125,7 +241,52 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
         {busy && <div className="bubble buddy typing">…</div>}
         <div ref={bottomRef} />
       </div>
+      {camera && (
+        <div className="camera">
+          <video ref={videoRef} playsInline muted />
+          <div className="row">
+            <button type="button" onClick={takePhoto}>📸 Foto maken</button>
+            <button type="button" onClick={stopCamera}>Annuleren</button>
+          </div>
+        </div>
+      )}
+      {cameraError !== null && <p className="warn">{cameraError}</p>}
+      {pending.length > 0 && (
+        <div className="attachments pending">
+          {pending.map((a, i) => (
+            <AttachmentChip
+              key={i}
+              attachment={a}
+              onRemove={() => setPending((p) => p.filter((_, j) => j !== i))}
+            />
+          ))}
+        </div>
+      )}
       <form onSubmit={submit} className="chat-input">
+        <span className="plus-wrap">
+          <button
+            type="button"
+            className="plus"
+            title="Bijlage toevoegen"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            ＋
+          </button>
+          {menuOpen && (
+            <span className="plus-menu">
+              <button type="button" onClick={() => fileInputRef.current?.click()}>📎 Bestand of foto</button>
+              <button type="button" onClick={startCamera}>📷 Foto maken</button>
+            </span>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            hidden
+            onChange={(e) => void addFiles(e.target.files)}
+          />
+        </span>
         <input
           autoFocus
           placeholder="Typ je vraag..."
