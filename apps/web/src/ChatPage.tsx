@@ -75,41 +75,74 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
   const bottomRef = useRef<HTMLDivElement>(null)
   const consumedInitial = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [pending, setPending] = useState<ReadonlyArray<Attachment>>([])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [camera, setCamera] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
-    setCamera(false)
+    setStream(null)
+    setCameraReady(false)
   }
 
   const startCamera = async () => {
     setMenuOpen(false)
     setCameraError(null)
+    setCameraReady(false)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-      streamRef.current = stream
-      setCamera(true)
-      // the video element only exists after this render
-      setTimeout(() => {
-        if (videoRef.current !== null) {
-          videoRef.current.srcObject = stream
-          void videoRef.current.play()
-        }
-      }, 0)
+      // plain `video: true`: a laptop has no "environment" camera, and that
+      // constraint can hand back a device that never produces frames
+      const media = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      })
+      streamRef.current = media
+      setStream(media)
     } catch (error) {
       setCameraError(`Camera niet beschikbaar: ${String(error)}`)
     }
   }
 
+  /** attach the stream exactly when the element mounts (a timeout can miss it) */
+  const attachVideo = (el: HTMLVideoElement | null) => {
+    videoRef.current = el
+    if (el !== null && stream !== null && el.srcObject !== stream) {
+      el.srcObject = stream
+      el.play().catch(() => {
+        /* muted autoplay is allowed; ignore transient errors */
+      })
+    }
+  }
+
+  // re-attach if the stream changes while the element is already mounted,
+  // and warn when the camera yields no frames (seen on some Firefox setups)
+  useEffect(() => {
+    const el = videoRef.current
+    if (el !== null && stream !== null && el.srcObject !== stream) {
+      el.srcObject = stream
+      el.play().catch(() => {})
+    }
+    if (stream === null) return
+    const id = setTimeout(() => {
+      const video = videoRef.current
+      if (video !== null && video.videoWidth === 0) {
+        setCameraError(
+          "De camera geeft geen beeld. Controleer of een ander programma de camera gebruikt, " +
+            "en of de browser toegang heeft (Systeeminstellingen → Privacy → Camera)."
+        )
+      }
+    }, 4000)
+    return () => clearTimeout(id)
+  }, [stream])
+
   const takePhoto = () => {
     const video = videoRef.current
-    if (video === null) return
+    if (video === null || video.videoWidth === 0) return
     const canvas = document.createElement("canvas")
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
@@ -133,7 +166,11 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
     setPending((p) => [...p, ...added])
   }
 
-  useEffect(() => () => stopCamera(), [])
+  // stop the camera when leaving the page
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }, [])
 
   // persisted transcript from the daemon (survives reloads, tabs and restarts)
   useEffect(() => {
@@ -241,11 +278,20 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
         {busy && <div className="bubble buddy typing">…</div>}
         <div ref={bottomRef} />
       </div>
-      {camera && (
+      {stream !== null && (
         <div className="camera">
-          <video ref={videoRef} playsInline muted />
+          <video
+            ref={attachVideo}
+            autoPlay
+            playsInline
+            muted
+            onLoadedMetadata={() => setCameraReady(true)}
+            onCanPlay={() => setCameraReady(true)}
+          />
           <div className="row">
-            <button type="button" onClick={takePhoto}>📸 Foto maken</button>
+            <button type="button" onClick={takePhoto} disabled={!cameraReady}>
+              {cameraReady ? "📸 Foto maken" : "Camera starten…"}
+            </button>
             <button type="button" onClick={stopCamera}>Annuleren</button>
           </div>
         </div>
