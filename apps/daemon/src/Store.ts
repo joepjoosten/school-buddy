@@ -665,17 +665,19 @@ const makeStore = Effect.gen(function* () {
         return message
       }).pipe(Effect.orDie),
 
+    // ordered by rowid (insertion order): two messages of the same turn can
+    // share a millisecond, and created_at ties would flip question and answer
     recentChatMessages: (limit) =>
       sql<ChatMessageRow>`
         select id, role, content, created_at from chat_messages
-        order by created_at desc limit ${limit}`.pipe(
+        order by rowid desc limit ${limit}`.pipe(
         Effect.map((rows) => rows.map(chatMessageFromRow).reverse()),
         Effect.orDie
       ),
 
     uncompactedChatMessages: sql<ChatMessageRow>`
       select id, role, content, created_at from chat_messages
-      where compacted = 0 order by created_at asc`.pipe(
+      where compacted = 0 order by rowid asc`.pipe(
       Effect.map((rows) => rows.map(chatMessageFromRow)),
       Effect.orDie
     ),
