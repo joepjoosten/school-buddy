@@ -50,6 +50,9 @@ button:hover { background: #e8edf7; }
   overflow-x: auto; font-size: 0.8em; margin: 0.4em 0;
 }
 .md a { color: #4f46e5; }
+.math-display { display: block; margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; }
+.math-display .katex-display { margin: 0; }
+.bubble .katex { font-size: 1.05em; }
 .md .md-heading { margin-top: 0.5em; }
 .bubble.typing { color: #8a94ab; }
 .chat-entry { display: flex; flex-direction: column; gap: 0.5rem; }

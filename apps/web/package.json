@@ -9,7 +9,9 @@
   "dependencies": {
     "@effect/atom-react": "4.0.0-rc.112",
     "@school-buddy/shared": "workspace:*",
+    "@types/katex": "^0.16.8",
     "effect": "4.0.0-rc.112",
+    "katex": "^0.18.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

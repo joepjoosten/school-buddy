@@ -1,3 +1,4 @@
+import katex from "katex"
 import type { ReactNode } from "react"
 
 /**
@@ -6,6 +7,33 @@ import type { ReactNode } from "react"
  * **bold**, *italic*, `code`, links, -/* and 1. lists, # headings, ``` blocks.
  */
 
+/**
+ * KaTeX output is generated from the math source with trust disabled, so no
+ * raw HTML from the model can reach the DOM through it.
+ */
+const TeX = ({ tex, display }: { tex: string; display: boolean }) => {
+  let html: string
+  try {
+    html = katex.renderToString(tex, {
+      displayMode: display,
+      throwOnError: false,
+      trust: false,
+      output: "html"
+    })
+  } catch {
+    return <code>{tex}</code>
+  }
+  return (
+    <span
+      className={display ? "math-display" : "math-inline"}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
+/** \(...\) and $...$ inline math, handled before the other inline markup */
+const INLINE_MATH = /\\\((.+?)\\\)|\$([^$\n]+?)\$/s
+
 const INLINE = /(\*\*(.+?)\*\*|\*([^*]+)\*|_([^_]+)_|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/
 
 const inline = (text: string): ReactNode => {
@@ -13,7 +41,19 @@ const inline = (text: string): ReactNode => {
   let rest = text
   let key = 0
   while (rest.length > 0) {
-    const match = INLINE.exec(rest)
+    const mathMatch = INLINE_MATH.exec(rest)
+    const markupMatch = INLINE.exec(rest)
+    // math wins when it starts first, so $..$ around markup stays literal
+    if (
+      mathMatch !== null &&
+      (markupMatch === null || mathMatch.index <= markupMatch.index)
+    ) {
+      if (mathMatch.index > 0) nodes.push(rest.slice(0, mathMatch.index))
+      nodes.push(<TeX key={key++} tex={(mathMatch[1] ?? mathMatch[2] ?? "").trim()} display={false} />)
+      rest = rest.slice(mathMatch.index + mathMatch[0].length)
+      continue
+    }
+    const match = markupMatch
     if (match === null || match.index === undefined) {
       nodes.push(rest)
       break
@@ -40,7 +80,23 @@ const UL_ITEM = /^\s*[-*]\s+(.*)$/
 const OL_ITEM = /^\s*\d+[.)]\s+(.*)$/
 const HEADING = /^#{1,4}\s+(.*)$/
 
+/** Pull out display math (\\[...\\] and $$...$$) before block parsing. */
+const DISPLAY_MATH = /\\\[([\s\S]+?)\\\]|\$\$([\s\S]+?)\$\$/
+
 export const Markdown = ({ text }: { text: string }) => {
+  const displayMatch = DISPLAY_MATH.exec(text)
+  if (displayMatch !== null) {
+    const before = text.slice(0, displayMatch.index)
+    const after = text.slice(displayMatch.index + displayMatch[0].length)
+    const tex = (displayMatch[1] ?? displayMatch[2] ?? "").trim()
+    return (
+      <div className="md">
+        {before.trim() !== "" && <Markdown text={before} />}
+        <TeX tex={tex} display />
+        {after.trim() !== "" && <Markdown text={after} />}
+      </div>
+    )
+  }
   const lines = text.split("\n")
   const blocks: Array<ReactNode> = []
   let i = 0
