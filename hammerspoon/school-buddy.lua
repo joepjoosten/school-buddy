@@ -121,96 +121,88 @@ end)
 
 local menubar = hs.menubar.new()
 
-local function menuItems()
-  return {
-    { title = "📅 Rooster & huiswerk", fn = function() hs.urlevent.openURL(DAEMON) end },
-    { title = "❓ Vragen checken", fn = checkPending },
-    { title = "💬 Chat", fn = function() hs.urlevent.openURL(DAEMON .. "/#chat") end },
-    { title = "⚙️ Instellingen", fn = function() hs.urlevent.openURL(DAEMON .. "/#instellingen") end },
-    { title = "-" },
-    {
-      title = "Status",
-      fn = function()
-        hs.http.asyncGet(DAEMON .. "/api/health", nil, function(status, body)
-          if status ~= 200 then
-            hs.alert.show("School Buddy daemon draait niet 😴")
-            return
-          end
-          local health = hs.json.decode(body)
-          local msg = "Versie: " .. health.version .. "\nSomtoday: " .. health.somtoday
-          if health.lastSync then msg = msg .. "\nLaatste sync: " .. health.lastSync end
-          if health.updateAvailable then
-            msg = msg .. "\n⬆️ Update beschikbaar: " .. health.latestVersion
-          end
-          hs.alert.show(msg)
-        end)
-      end
-    }
-  }
+-- --- quick chat + menu (single left click on the menu bar icon) -------------
+-- Everything lives in one chooser: with an empty query it lists the menu
+-- actions, and as soon as you type it turns into "ask your buddy". A right
+-- click on a status bar item is not reliably delivered to Hammerspoon, so it
+-- is only a bonus path — this chooser is the one that always works.
+
+local function openUrl(path)
+  return function() hs.urlevent.openURL(DAEMON .. path) end
 end
 
--- --- quick chat (left click on the menu bar icon) ---------------------------
+local function showStatus()
+  hs.http.asyncGet(DAEMON .. "/api/health", nil, function(status, body)
+    if status ~= 200 then
+      hs.alert.show("School Buddy daemon draait niet 😴")
+      return
+    end
+    local health = hs.json.decode(body)
+    local msg = "Versie: " .. health.version .. "\nSomtoday: " .. health.somtoday
+    if health.lastSync then msg = msg .. "\nLaatste sync: " .. health.lastSync end
+    if health.updateAvailable then
+      msg = msg .. "\n⬆️ Update beschikbaar: " .. health.latestVersion
+    end
+    hs.alert.show(msg)
+  end)
+end
+
+local ACTIONS = {
+  { id = "rooster", text = "📅 Rooster & huiswerk", subText = "Weekoverzicht openen", fn = openUrl("") },
+  { id = "planning", text = "🗓️ Planning", subText = "Je leersessies per dag", fn = openUrl("/#planning") },
+  { id = "chat", text = "💬 Chat openen", subText = "Volledig chatscherm met je buddy", fn = openUrl("/#chat") },
+  { id = "vragen", text = "❓ Vragen checken", subText = "Openstaande vragen ophalen", fn = nil },
+  { id = "instellingen", text = "⚙️ Instellingen", subText = "Somtoday, AI, planning, updates", fn = openUrl("/#instellingen") },
+  { id = "status", text = "ℹ️ Status", subText = "Versie en laatste sync", fn = showStatus }
+}
+
+local function actionChoices()
+  local choices = {}
+  for _, a in ipairs(ACTIONS) do
+    table.insert(choices, { id = a.id, text = a.text, subText = a.subText })
+  end
+  return choices
+end
 
 local function quickChat()
   local chooser
   chooser = hs.chooser.new(function(choice)
-    -- Enter selects the mirrored row, which carries the typed question;
-    -- an empty choices list would make Enter do nothing (delayed dismiss)
-    if choice ~= nil and choice.question ~= nil and choice.question:match("%S") then
-      hs.urlevent.openURL(DAEMON .. "/#chat?q=" .. hs.http.encodeForQuery(choice.question))
+    if choice == nil then return end
+    if choice.id == "ask" then
+      if choice.question ~= nil and choice.question:match("%S") then
+        hs.urlevent.openURL(DAEMON .. "/#chat?q=" .. hs.http.encodeForQuery(choice.question))
+      end
+      return
+    end
+    for _, a in ipairs(ACTIONS) do
+      if a.id == choice.id then
+        if a.id == "vragen" then checkPending() elseif a.fn ~= nil then a.fn() end
+        return
+      end
     end
   end)
-  chooser:placeholderText("Vraag je buddy iets… (Enter om te sturen)")
+  chooser:placeholderText("Vraag je buddy iets, of kies hieronder…")
   chooser:queryChangedCallback(function(query)
     if query:match("%S") then
       chooser:choices({
-        { text = query, subText = "Druk Enter om dit aan je buddy te vragen", question = query }
+        { id = "ask", text = query, subText = "Druk Enter om dit aan je buddy te vragen", question = query }
       })
     else
-      chooser:choices({})
+      chooser:choices(actionChoices())
     end
   end)
-  chooser:rows(1)
+  chooser:choices(actionChoices())
+  chooser:rows(6)
   chooser:width(30)
   chooser:show()
-end
-
--- --- start -----------------------------------------------------------------
-
-local function showMenu()
-  menubar:setMenu(menuItems())
-  menubar:popupMenu(hs.mouse.absolutePosition())
-  menubar:setMenu(nil)
 end
 
 function M.start()
   if menubar then
     menubar:setTitle("🎒")
-    -- No permanent menu: left click = quick chat, ctrl+click = the menu.
-    -- (The status bar only delivers LEFT clicks to this callback.)
-    menubar:setClickCallback(function(mods)
-      if mods and (mods.ctrl or mods.alt) then
-        showMenu()
-      else
-        quickChat()
-      end
-    end)
-    -- Right / two-finger clicks never reach the click callback, so catch them
-    -- with an eventtap limited to the icon's frame. Needs the Accessibility
-    -- permission Hammerspoon asks for; ctrl+click keeps working without it.
-    -- (kept on M so the tap isn't garbage-collected)
-    M.rightClickTap = hs.eventtap.new({ hs.eventtap.event.types.rightMouseDown }, function(event)
-      local frame = menubar:frame()
-      if frame == nil then return false end
-      local loc = event:location()
-      if loc.x >= frame.x and loc.x <= frame.x + frame.w
-        and loc.y >= frame.y and loc.y <= frame.y + frame.h then
-        showMenu()
-        return true
-      end
-      return false
-    end)
-    M.rightClickTap:start()
+    -- Single left click opens the chooser: it doubles as the menu, so no
+    -- right-click eventtap (and no Accessibility permission) is needed.
+    menubar:setClickCallback(quickChat)
   end
   watcher:start()
   -- also poll while the lid stays open (lessons end without a sleep/wake)
