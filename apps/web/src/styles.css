@@ -173,8 +173,9 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .hw-day.today { background: #e8ecff; }
 .hw-day .empty { color: #c5cbd8; font-size: 0.8rem; margin: 0.2rem 0; text-align: center; }
 .homework {
-  display: flex; gap: 0.35rem; align-items: baseline; background: #fff7ed;
-  border-radius: 8px; padding: 0.3rem 0.45rem; margin-bottom: 0.3rem; font-size: 0.8rem;
+  display: flex; gap: 0.35rem; align-items: baseline; background: #ffedd5;
+  border: 1px solid #fdba74; border-radius: 8px; padding: 0.3rem 0.45rem;
+  margin-bottom: 0.3rem; font-size: 0.8rem;
 }
 .homework label { display: flex; gap: 0.35rem; align-items: baseline; flex: 1; cursor: pointer; }
 .hw-delete {
@@ -183,7 +184,8 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 }
 .homework:hover .hw-delete { opacity: 0.7; }
 .hw-delete:hover { opacity: 1; background: transparent; }
-.homework.reminder { background: #eef2ff; }
+/* deeper than the today-column tint (#e8ecff), so it stays legible there */
+.homework.reminder { background: #c7d2fe; border-color: #818cf8; }
 .homework.done { opacity: 0.5; }
 .homework.done .desc { text-decoration: line-through; }
 .homework .subject { font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
