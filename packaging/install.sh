@@ -22,6 +22,8 @@ chmod +x "$DEST/school-buddy"
 xattr -d com.apple.quarantine "$DEST/school-buddy" 2>/dev/null || true
 
 echo "==> launchd agent"
+# a fresh user account has no LaunchAgents directory yet
+mkdir -p "$HOME/Library/LaunchAgents"
 cat > "$PLIST_DEST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -87,11 +89,34 @@ CB_PLIST="$CB_APP/Contents/Info.plist"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$CB_APP"
 
 echo "==> Hammerspoon"
-if [ ! -d "/Applications/Hammerspoon.app" ]; then
-  if command -v brew >/dev/null; then
-    brew install --cask hammerspoon
-  else
-    echo "⚠️  Hammerspoon ontbreekt. Download het van https://www.hammerspoon.org en run dit script opnieuw."
+# Installed per user in ~/Applications when it isn't there yet: that needs no
+# administrator rights (writing to /Applications or using brew does).
+HS_APP=""
+for candidate in "/Applications/Hammerspoon.app" "$HOME/Applications/Hammerspoon.app"; do
+  if [ -d "$candidate" ]; then
+    HS_APP="$candidate"
+    break
+  fi
+done
+if [ -z "$HS_APP" ]; then
+  echo "    Hammerspoon downloaden naar ~/Applications…"
+  mkdir -p "$HOME/Applications"
+  HS_TMP="$(mktemp -d)"
+  HS_TAG="$(curl -s -o /dev/null -w '%{redirect_url}' https://github.com/Hammerspoon/hammerspoon/releases/latest | sed 's#.*/tag/##')"
+  if [ -n "$HS_TAG" ] && curl -fsSL -o "$HS_TMP/hs.zip" \
+      "https://github.com/Hammerspoon/hammerspoon/releases/download/$HS_TAG/Hammerspoon-$HS_TAG.zip"; then
+    if unzip -q "$HS_TMP/hs.zip" -d "$HS_TMP"; then
+      rm -rf "$HOME/Applications/Hammerspoon.app"
+      mv "$HS_TMP/Hammerspoon.app" "$HOME/Applications/Hammerspoon.app"
+      # downloaded apps are quarantined; clearing it keeps Gatekeeper quiet
+      xattr -dr com.apple.quarantine "$HOME/Applications/Hammerspoon.app" 2>/dev/null || true
+      HS_APP="$HOME/Applications/Hammerspoon.app"
+      echo "    ✅ Hammerspoon $HS_TAG geïnstalleerd in ~/Applications"
+    fi
+  fi
+  rm -rf "$HS_TMP"
+  if [ -z "$HS_APP" ]; then
+    echo "⚠️  Hammerspoon niet geïnstalleerd — download het handmatig van https://www.hammerspoon.org (de rest werkt gewoon)."
   fi
 fi
 HS_INIT="$HOME/.hammerspoon/init.lua"
@@ -99,7 +124,9 @@ mkdir -p "$HOME/.hammerspoon"
 if [ ! -f "$HS_INIT" ] || ! grep -qF "school-buddy.lua" "$HS_INIT"; then
   echo "dofile(\"$DEST/hammerspoon/school-buddy.lua\")" >> "$HS_INIT"
 fi
-[ -d "/Applications/Hammerspoon.app" ] && open -a Hammerspoon || true
+if [ -n "$HS_APP" ]; then
+  open -a "$HS_APP" || true
+fi
 
 echo
 echo "✅ Klaar. Volgende stappen:"

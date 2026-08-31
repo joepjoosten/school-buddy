@@ -26,6 +26,7 @@ echo "==> data dir"
 mkdir -p "$HOME/.school-buddy"
 
 echo "==> launchd agent"
+mkdir -p "$HOME/Library/LaunchAgents"
 BUN_BIN="$(command -v bun)"
 sed -e "s|__BUN__|$BUN_BIN|g" \
     -e "s|__REPO__|$REPO|g" \

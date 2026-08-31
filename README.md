@@ -25,6 +25,10 @@ Download de nieuwste `school-buddy-<versie>-darwin-arm64.tar.gz` (Apple Silicon)
 of `...-darwin-x64.tar.gz` (Intel) van de
 [releases-pagina](https://github.com/joepjoosten/school-buddy/releases), en:
 
+Er zijn **geen beheerdersrechten** nodig: alles wordt in de thuismap van de
+leerling geïnstalleerd (`~/.school-buddy`, `~/Library/LaunchAgents`,
+`~/Applications`), inclusief Hammerspoon als dat er nog niet staat.
+
 ```sh
 tar -xzf school-buddy-*.tar.gz && cd school-buddy-*/
 ./install.sh
