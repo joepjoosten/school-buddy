@@ -88,12 +88,9 @@ export const App = () => {
         {health && health.somtoday === "unauthenticated" && (
           <span className="warn">⚠️ Somtoday niet gekoppeld</span>
         )}
-        {health &&
-          health.version !== "dev" &&
-          health.latestVersion !== null &&
-          health.latestVersion !== health.version && (
-            <span className="warn">⬆️ Update beschikbaar ({health.latestVersion})</span>
-          )}
+        {health && health.updateAvailable && (
+          <span className="warn">⬆️ Update beschikbaar ({health.latestVersion})</span>
+        )}
         {health && <span className="version">{health.version}</span>}
         <span className="pages">
           <a className={`page-link${route === "" ? " active" : ""}`} href="#">📅 rooster</a>

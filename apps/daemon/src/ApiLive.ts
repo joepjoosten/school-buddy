@@ -1,4 +1,5 @@
 import type { ChatAttachment } from "@school-buddy/shared"
+import { isNewerVersion } from "@school-buddy/shared"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -178,7 +179,7 @@ const UpdateApiLive = HttpApiBuilder.group(Api, "update", (handlers) =>
         return {
           current: VERSION,
           latest,
-          updateAvailable: latest !== null && VERSION !== "dev" && latest !== VERSION
+          updateAvailable: isNewerVersion(VERSION, latest)
         }
       }))
     .handle("run", () => Effect.sync(() => startDetachedUpdate())))
@@ -243,7 +244,8 @@ const HealthLive = HttpApiBuilder.group(Api, "health", (handlers) =>
         chat,
         lastSync,
         version: VERSION,
-        latestVersion
+        latestVersion,
+        updateAvailable: isNewerVersion(VERSION, latestVersion)
       }
     })))
 

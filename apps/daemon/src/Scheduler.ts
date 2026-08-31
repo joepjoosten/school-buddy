@@ -7,6 +7,7 @@ import { planUnplannedHomework } from "./Planner.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
 import { addDays, toDateOnly } from "./time.ts"
+import { isNewerVersion } from "@school-buddy/shared"
 import { fetchLatestVersion } from "./update.ts"
 import { VERSION } from "./version.ts"
 
@@ -88,7 +89,7 @@ const updateCheckJob = Effect.gen(function* () {
   const latest = yield* Effect.promise(() => fetchLatestVersion())
   if (latest === null) return
   yield* store.setMeta("update.latest", latest)
-  if (latest === VERSION || VERSION === "dev") return
+  if (!isNewerVersion(VERSION, latest)) return
   // notify once per new version
   const prompted = yield* store.getMeta("update.prompted")
   if (prompted === latest) return

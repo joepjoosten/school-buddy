@@ -326,6 +326,24 @@ export type RosterChange = typeof RosterChange.Type
 
 // --- Updates ----------------------------------------------------------------
 
+/** Compare "v1.2.3"-style versions: negative when a < b, 0 when equal. */
+export const compareVersions = (a: string, b: string): number => {
+  const parts = (v: string): Array<number> =>
+    v.replace(/^v/, "").split(/[.-]/).map((p) => (/^\d+$/.test(p) ? Number(p) : -1))
+  const pa = parts(a)
+  const pb = parts(b)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] ?? 0
+    const nb = pb[i] ?? 0
+    if (na !== nb) return na - nb
+  }
+  return 0
+}
+
+/** Is `latest` genuinely newer than the running `current`? */
+export const isNewerVersion = (current: string, latest: string | null): boolean =>
+  latest !== null && current !== "dev" && compareVersions(current, latest) < 0
+
 export const UpdateCheck = Schema.Struct({
   current: Schema.String,
   latest: Schema.NullOr(Schema.String),
@@ -355,6 +373,8 @@ export const Health = Schema.Struct({
   /** running daemon version ("dev" outside releases) */
   version: Schema.String,
   /** newest release seen on GitHub, null if not checked yet */
-  latestVersion: Schema.NullOr(Schema.String)
+  latestVersion: Schema.NullOr(Schema.String),
+  /** true only when latestVersion is genuinely newer than version */
+  updateAvailable: Schema.Boolean
 })
 export type Health = typeof Health.Type

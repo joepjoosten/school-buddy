@@ -139,8 +139,7 @@ local function menuItems()
           local health = hs.json.decode(body)
           local msg = "Versie: " .. health.version .. "\nSomtoday: " .. health.somtoday
           if health.lastSync then msg = msg .. "\nLaatste sync: " .. health.lastSync end
-          if health.latestVersion and health.latestVersion ~= health.version
-            and health.version ~= "dev" then
+          if health.updateAvailable then
             msg = msg .. "\n⬆️ Update beschikbaar: " .. health.latestVersion
           end
           hs.alert.show(msg)

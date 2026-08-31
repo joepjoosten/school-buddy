@@ -3,7 +3,7 @@ import type { School, Settings } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useRef, useState } from "react"
 import type { AiProvider as AiProviderSchema } from "@school-buddy/shared"
-import { parseLestijden } from "@school-buddy/shared"
+import { compareVersions, parseLestijden } from "@school-buddy/shared"
 import {
   checkUpdate,
   connectFinish,
@@ -366,9 +366,10 @@ const UpdateSection = () => {
   }, [updating, health])
 
   if (health === null) return null
-  const updateAvailable = health.version !== "dev" &&
-    health.latestVersion !== null &&
-    health.latestVersion !== health.version
+  const updateAvailable = health.updateAvailable
+  // a stored value from before this install would read as an older "nieuwste"
+  const showLatest = health.latestVersion !== null &&
+    compareVersions(health.version, health.latestVersion) < 0
 
   const check = async () => {
     setChecking(true)
@@ -400,7 +401,7 @@ const UpdateSection = () => {
       <h2>Versie</h2>
       <p>
         Huidige versie: <b>{health.version}</b>
-        {health.latestVersion !== null && <> · nieuwste: {health.latestVersion}</>}
+        {showLatest && <> · nieuwste: {health.latestVersion}</>}
       </p>
       <div className="row">
         <button type="button" onClick={check} disabled={checking || updating}>
