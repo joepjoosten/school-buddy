@@ -107,7 +107,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 
 /* --- week calendar ------------------------------------------------------ */
 .cal { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; overflow: hidden; }
-.cal-head, .cal-body, .hw-grid { display: grid; grid-template-columns: 56px repeat(5, 1fr); }
+.cal-head, .cal-body, .cal-allday, .hw-grid { display: grid; grid-template-columns: 56px repeat(5, 1fr); }
 .cal-head { border-bottom: 1px solid #e3e8f2; }
 .cal-day-head {
   padding: 0.5rem 0.4rem; font-size: 0.9rem; font-weight: 600; text-transform: capitalize;
@@ -177,15 +177,21 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-day.vacation { background-color: #fef9c3; }
 .cal-day.today.vacation { background-color: #fdf2b8; }
 .cal-day-head.vacation { background: #fef08a; color: #713f12; }
-.cal-day-head .vacation-name {
-  display: block; font-size: 0.66rem; font-weight: 600; color: #854d0e;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* dedicated all-day row, so nothing overlaps the first lesson */
+.cal-allday { border-bottom: 1px solid #d5dbe8; background: #fafbff; }
+.cal-allday-label {
+  font-size: 0.62rem; color: #8a94ab; text-transform: uppercase; letter-spacing: 0.03em;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0.3rem 6px;
 }
-.vacation-banner {
-  position: absolute; top: 4px; left: 4px; right: 4px; z-index: 1;
-  background: #fde68a; border: 1px solid #facc15; border-radius: 6px;
-  padding: 0.15rem 0.35rem; font-size: 0.66rem; font-weight: 600; color: #713f12;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+.cal-allday-cell {
+  border-left: 1px solid #d5dbe8; padding: 0.25rem 0.3rem; min-height: 1.9rem;
+  display: flex; align-items: center;
+}
+.cal-allday-cell.today { background: #e8ecff; }
+.allday-chip {
+  background: #fde68a; border: 1px solid #facc15; border-radius: 999px;
+  padding: 0.1rem 0.5rem; font-size: 0.68rem; font-weight: 600; color: #713f12;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
 }
 .hw-day.vacation { background: #fefce8; }
 .cal-divider { border: 0; border-top: 2px solid #d5dbe8; margin: 0.4rem 0; }

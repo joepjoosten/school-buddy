@@ -163,12 +163,22 @@ export const WeekGrid = ({
               }`}
             >
               {d.name} <small>{d.date.slice(8, 10)}-{d.date.slice(5, 7)}</small>
-              {vacationOn(d.date) !== null && (
-                <span className="vacation-name">{vacationOn(d.date)}</span>
-              )}
             </div>
           ))}
         </div>
+        {week.vacations.length > 0 && (
+          <div className="cal-allday">
+            <div className="cal-allday-label">hele dag</div>
+            {days.map((d) => {
+              const name = vacationOn(d.date)
+              return (
+                <div key={d.date} className={`cal-allday-cell${d.date === today ? " today" : ""}`}>
+                  {name !== null && <span className="allday-chip" title={name}>🌴 {name}</span>}
+                </div>
+              )
+            })}
+          </div>
+        )}
         <div className="cal-body" style={{ height: bodyHeight }}>
           <div className="cal-gutter">
             {hours.map((h) => (
@@ -203,11 +213,6 @@ export const WeekGrid = ({
               }`}
               style={{ backgroundSize: `100% ${PX_PER_HOUR}px` }}
             >
-              {vacationOn(d.date) !== null && (
-                <div className="vacation-banner" title={vacationOn(d.date) ?? ""}>
-                  🌴 {vacationOn(d.date)}
-                </div>
-              )}
               {layoutDay(week.lessons.filter((l) => localDay(l.start) === d.date)).map(
                 ({ lesson, column, columns }) => {
                   const top = yOf(minutesOf(lesson.start))
