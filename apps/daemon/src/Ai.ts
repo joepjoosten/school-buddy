@@ -12,7 +12,7 @@ import type {
   Lesson,
   Settings
 } from "@school-buddy/shared"
-import { defaultAiModels, localDay, localTime } from "@school-buddy/shared"
+import { addDays, defaultAiModels, localDay, localTime, today } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -22,7 +22,6 @@ import { Chat, LanguageModel, Tool, Toolkit } from "effect/unstable/ai"
 import { FetchHttpClient } from "effect/unstable/http"
 import { keychainGet } from "./Keychain.ts"
 import { Store } from "./Store.ts"
-import { addDays, toDateOnly } from "./time.ts"
 
 export const PROVIDERS: Record<
   AiProvider,
@@ -96,7 +95,7 @@ Je kunt ook corrigeren wat voor soort huiswerk iets is: gebruik huiswerk_soort_w
 Elk huiswerkitem krijgt een planning van leersessies (dag + duur); gebruik planning_overzicht, planning_maken, planning_verplaatsen en planning_afvinken als de leerling over zijn planning praat.
 Als je eerder in dit gesprek een vraag stelde over de planning van huiswerk en de leerling antwoordt, maak dan de planning met planning_maken (het homeworkId staat in je vraag).
 Als je eerder in dit gesprek vroeg of twee huiswerkitems hetzelfde zijn en de leerling antwoordt: gebruik huiswerk_samenvoegen bij "ja" en huiswerk_apart_houden bij "nee" (de id's staan in je vraag).
-Vandaag is ${toDateOnly(new Date())}.${
+Vandaag is ${today()}.${
     summary === null
       ? ""
       : `
@@ -248,7 +247,7 @@ const makeAi = Effect.gen(function* () {
         .pipe(Effect.map((item) => `Toegevoegd (id ${item.id}): ${item.subject} — ${item.dueDate}`)),
     huiswerk_openstaand: () =>
       store
-        .openHomework(toDateOnly(new Date()), toDateOnly(addDays(new Date(), 21)))
+        .openHomework(today(), addDays(today(), 21))
         .pipe(
           Effect.map((items) =>
             items.length === 0
@@ -309,7 +308,7 @@ const makeAi = Effect.gen(function* () {
       }),
     planning_overzicht: () =>
       store
-        .planItemsBetween(toDateOnly(new Date()), toDateOnly(addDays(new Date(), 14)))
+        .planItemsBetween(today(), addDays(today(), 14))
         .pipe(
           Effect.map((items) =>
             items.length === 0
@@ -412,7 +411,7 @@ const makeAi = Effect.gen(function* () {
    */
   const compactIfNewDay = Effect.gen(function* () {
     const pending = yield* store.uncompactedChatMessages
-    const todayStart = `${toDateOnly(new Date())}T00:00:00`
+    const todayStart = `${today()}T00:00:00`
     const older = pending.filter((m) => m.createdAt.localeCompare(todayStart) < 0)
     if (older.length === 0) return
     const previous = yield* store.getMeta(CHAT_SUMMARY_KEY)
@@ -671,7 +670,7 @@ Als je echt niet kunt inschatten wat er nodig is (bv. onduidelijk hoe groot het 
 
 "${answer}"
 
-Vandaag is ${toDateOnly(new Date())}. Komende lessen:
+Vandaag is ${today()}. Komende lessen:
 ${lessonList === "" ? "(onbekend)" : lessonList}
 
 Zet dit om naar een gestructureerd huiswerkitem. Kies als dueDate de datum die de leerling noemt,

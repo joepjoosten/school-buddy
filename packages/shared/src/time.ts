@@ -53,3 +53,39 @@ export const addDays = (day: string, days: number): string =>
       DateTime.toUtc(DateTime.add(zoned(dayStartInstant(day)), { days }))
     )
   )
+
+/** Monday (local calendar day) of the week containing `day`. */
+export const mondayOf = (day: string): string => {
+  const parts = DateTime.toParts(zoned(dayStartInstant(day)))
+  // Effect's weekDay is 0 = Sunday
+  const fromMonday = (parts.weekDay + 6) % 7
+  return addDays(day, -fromMonday)
+}
+
+/** ISO-8601 week number and week-year of a local calendar day. */
+export const isoWeek = (day: string): { year: number; week: number } => {
+  // the Thursday of this week decides the ISO year
+  const thursday = addDays(mondayOf(day), 3)
+  const year = DateTime.toParts(zoned(dayStartInstant(thursday))).year
+  // week 1 is the week containing 4 January
+  const week1Monday = mondayOf(`${year}-01-04`)
+  const days = Math.round(
+    (Date.parse(dayStartInstant(thursday)) - Date.parse(dayStartInstant(week1Monday))) / 86_400_000
+  )
+  return { year, week: Math.floor(days / 7) + 1 }
+}
+
+export interface WeekBounds {
+  readonly year: number
+  readonly week: number
+  readonly monday: string
+  /** exclusive end: the following Monday */
+  readonly nextMonday: string
+}
+
+/** ISO week containing `day`, as local calendar days. */
+export const weekBoundsOf = (day: string): WeekBounds => {
+  const monday = mondayOf(day)
+  const { week, year } = isoWeek(day)
+  return { year, week, monday, nextMonday: addDays(monday, 7) }
+}

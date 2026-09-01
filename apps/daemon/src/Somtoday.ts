@@ -6,7 +6,7 @@ import * as Layer from "effect/Layer"
 import * as Semaphore from "effect/Semaphore"
 import { keychainGet, keychainSet } from "./Keychain.ts"
 import { Store } from "./Store.ts"
-import { addDays, mondayOf, toDateOnly } from "./time.ts"
+import { addDays, mondayOf, today } from "@school-buddy/shared"
 
 // OAuth constants for the Somtoday student app (see RESEARCH.md §1).
 // Note: the old UUID-style client ids were revoked in 2025; the native app id works.
@@ -325,8 +325,8 @@ const makeSomtoday = Effect.gen(function* () {
   const sync: Effect.Effect<SyncResult, SomtodayError> = Effect.gen(function* () {
     const auth = yield* refreshAccessToken
     // rolling window: two weeks back until ~a trimester (16 weeks) ahead
-    const from = toDateOnly(addDays(mondayOf(new Date()), -14))
-    const to = toDateOnly(addDays(mondayOf(new Date()), 16 * 7))
+    const from = addDays(mondayOf(today()), -14)
+    const to = addDays(mondayOf(today()), 16 * 7)
 
     const afspraken = yield* apiGetAll(auth, "afspraken", {
       begindatum: from,

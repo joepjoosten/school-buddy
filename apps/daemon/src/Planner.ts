@@ -2,7 +2,7 @@ import type { HomeworkItem, PlanItemInput } from "@school-buddy/shared"
 import * as Effect from "effect/Effect"
 import { Ai } from "./Ai.ts"
 import { Store } from "./Store.ts"
-import { addDays, parseDateOnly, toDateOnly } from "./time.ts"
+import { addDays, today } from "@school-buddy/shared"
 
 const REMINDER = /^\s*(boek|boeken|schrift|schriften|map|gymkleren|laptop|rekenmachine|atlas|woordenboek|materiaal)\b|\bmee ?nemen\b|\bmeebrengen\b|\bklaarleggen\b|\bbij je hebben\b/i
 const WORK = /\bmaken\b|\blezen\b|\bleren\b|\bschrijven\b|opgav|oefen|toets|so\b|proefwerk|verslag|presentatie|samenvatting|po\b/i
@@ -48,19 +48,19 @@ export const planHomework = (homework: HomeworkItem): Effect.Effect<PlanOutcome,
   Effect.gen(function* () {
     const store = yield* Store
     const ai = yield* Ai
-    const today = toDateOnly(new Date())
+    const currentDay = today()
     // window: today .. the day before the due date
-    if (homework.dueDate <= today) {
+    if (homework.dueDate <= currentDay) {
       yield* store.setPlanningStatus(homework.id, "skipped")
       return "skipped" as const
     }
-    const loads = yield* store.dayLoads(today, homework.dueDate)
+    const loads = yield* store.dayLoads(currentDay, homework.dueDate)
     const days = loads.map((d) => d.day)
     const settings = yield* store.getSettings
 
     const proposal = yield* ai.planHomework({
       homework,
-      today,
+      today: currentDay,
       preference: settings.planningPreference,
       days: loads
     })
@@ -111,7 +111,7 @@ export const classifyNewHomework: Effect.Effect<number, never, Store | Ai> = Eff
 export const planUnplannedHomework: Effect.Effect<number, never, Store | Ai> = Effect.gen(function* () {
   const store = yield* Store
   yield* classifyNewHomework
-  const items = yield* store.unplannedHomework(toDateOnly(new Date()))
+  const items = yield* store.unplannedHomework(today())
   let planned = 0
   for (const item of items) {
     const outcome = yield* planHomework(item)
@@ -120,8 +120,6 @@ export const planUnplannedHomework: Effect.Effect<number, never, Store | Ai> = E
   return planned
 })
 
-export const nextDays = (from: string, count: number): Array<string> =>
-  Array.from({ length: count }, (_, i) => toDateOnly(addDays(parseDateOnly(from), i)))
 
 /** Replan one homework item by id; returns a short Dutch status for the chat. */
 export const replanById = (homeworkId: string): Effect.Effect<string, never, Store | Ai> =>

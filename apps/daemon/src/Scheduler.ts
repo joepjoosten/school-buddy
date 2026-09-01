@@ -6,8 +6,7 @@ import { dedupHomework } from "./HomeworkDedup.ts"
 import { planUnplannedHomework } from "./Planner.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
-import { addDays, toDateOnly } from "./time.ts"
-import { isNewerVersion } from "@school-buddy/shared"
+import { addDays, isNewerVersion, today } from "@school-buddy/shared"
 import { fetchLatestVersion } from "./update.ts"
 import { VERSION } from "./version.ts"
 
@@ -22,7 +21,7 @@ const AUTH_FAILS_KEY = "somtoday.authFails"
 /** Tell the student about roster changes that hit the next ~2 days. */
 const notifyRosterChanges = Effect.gen(function* () {
   const store = yield* Store
-  const horizon = toDateOnly(addDays(new Date(), 3))
+  const horizon = addDays(today(), 3)
   const changes = yield* store.unnotifiedChanges(horizon)
   if (changes.length === 0) return
   const lines = changes.slice(0, 6).map((c) => `• ${c.summary}`)

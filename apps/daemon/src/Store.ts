@@ -23,9 +23,8 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { SqlClient } from "effect/unstable/sql/SqlClient"
-import { dayStartInstant } from "@school-buddy/shared"
+import { addDays, dayStartInstant, today, weekBoundsOf } from "@school-buddy/shared"
 import { diffLessons } from "./rosterDiff.ts"
-import { toDateOnly, weekBoundsOf } from "./time.ts"
 
 export interface StoreShape {
   readonly replaceLessons: (
@@ -401,9 +400,9 @@ const makeStore = Effect.gen(function* () {
           const rows = yield* sql<LessonRow>`
             select * from lessons
             where start >= ${dayStartInstant(fromDate)} and start < ${dayStartInstant(toDateExclusive)}`
-          const today = toDateOnly(new Date())
+          const currentDay = today()
           const changes = diffLessons(rows.map(lessonFromRow), lessons, {
-            from: today > fromDate ? today : fromDate,
+            from: currentDay > fromDate ? currentDay : fromDate,
             until: syncedUntil < toDateExclusive ? syncedUntil : toDateExclusive
           })
           const now = new Date().toISOString()
@@ -837,8 +836,7 @@ const makeStore = Effect.gen(function* () {
         const lessonMap = new Map(lessons.map((r) => [r.day, r.n]))
         const plannedMap = new Map(planned.map((r) => [r.day, r.minutes]))
         const days: Array<{ day: string; lessons: number; plannedMinutes: number }> = []
-        for (let d = new Date(`${fromDate}T12:00:00`); toDateOnly(d) < toDateExclusive; d.setDate(d.getDate() + 1)) {
-          const day = toDateOnly(d)
+        for (let day = fromDate; day < toDateExclusive; day = addDays(day, 1)) {
           days.push({ day, lessons: lessonMap.get(day) ?? 0, plannedMinutes: plannedMap.get(day) ?? 0 })
         }
         return days

@@ -1,5 +1,5 @@
 import type { ChatAttachment } from "@school-buddy/shared"
-import { isNewerVersion, localDay } from "@school-buddy/shared"
+import { isNewerVersion, localDay, today, weekBoundsOf } from "@school-buddy/shared"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -14,7 +14,6 @@ import { collectRecentLogs } from "./logs.ts"
 import { fetchLatestVersion, startDetachedUpdate } from "./update.ts"
 import { Somtoday } from "./Somtoday.ts"
 import { Store } from "./Store.ts"
-import { toDateOnly, weekBoundsOf } from "./time.ts"
 import { VERSION } from "./version.ts"
 
 const RoosterLive = HttpApiBuilder.group(Api, "rooster", (handlers) =>
@@ -22,7 +21,7 @@ const RoosterLive = HttpApiBuilder.group(Api, "rooster", (handlers) =>
     .handle("week", ({ query }) =>
       Effect.gen(function* () {
         const store = yield* Store
-        const date = query.date ?? toDateOnly(new Date())
+        const date = query.date ?? today()
         return yield* store.weekData(date)
       }))
     .handle("changes", ({ query }) =>
@@ -52,7 +51,7 @@ const PlanningLive = HttpApiBuilder.group(Api, "planning", (handlers) =>
     .handle("week", ({ query }) =>
       Effect.gen(function* () {
         const store = yield* Store
-        const bounds = weekBoundsOf(query.date ?? toDateOnly(new Date()))
+        const bounds = weekBoundsOf(query.date ?? today())
         const items = yield* store.planItemsBetween(bounds.monday, bounds.nextMonday)
         return { monday: bounds.monday, items }
       }))
@@ -98,7 +97,7 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
         ) {
           const answer = answerText.trim()
           const now = new Date()
-          const week = yield* store.weekData(toDateOnly(now))
+          const week = yield* store.weekData(today())
           // compare as instants: stored lesson times carry a local offset
           const upcoming = week.lessons.filter((l) => new Date(l.start) > now)
           const ai = yield* Ai
@@ -121,7 +120,7 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
             yield* store.createHomework(
               {
                 subject: prompt.subject ?? "onbekend",
-                dueDate: next !== null ? localDay(next.start) : toDateOnly(fallback),
+                dueDate: next !== null ? localDay(next.start) : localDay(fallback.toISOString()),
                 description: answer,
                 lessonId: prompt.lessonId
               },
