@@ -99,7 +99,8 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
           const answer = answerText.trim()
           const now = new Date()
           const week = yield* store.weekData(toDateOnly(now))
-          const upcoming = week.lessons.filter((l) => l.start > now.toISOString())
+          // compare as instants: stored lesson times carry a local offset
+          const upcoming = week.lessons.filter((l) => new Date(l.start) > now)
           const ai = yield* Ai
           const interpreted = yield* ai.interpretHomework({
             answer,
