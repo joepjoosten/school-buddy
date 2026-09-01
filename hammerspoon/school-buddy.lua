@@ -197,6 +197,37 @@ local function quickChat()
   chooser:show()
 end
 
+-- --- self-reload on update -------------------------------------------------
+-- The installer replaces this file, but a running Hammerspoon keeps executing
+-- the old code until it reloads. Watch the install directory and reload when
+-- it changes, so an update takes effect without touching Hammerspoon.
+
+local function configDir()
+  local source = debug.getinfo(1, "S").source:sub(2)
+  return source:match("(.*)/[^/]*$") or "."
+end
+
+local function watchForUpdates()
+  local dir = configDir()
+  -- the installer removes and recreates this directory, so watch its parent
+  local parent = dir:match("(.*)/[^/]*$") or dir
+  M.reloadTimer = nil
+  M.configWatcher = hs.pathwatcher.new(parent, function(paths)
+    local touched = false
+    for _, path in ipairs(paths or {}) do
+      if path:match("%.lua$") then touched = true end
+    end
+    if not touched then return end
+    -- an install writes several files; reload once, after it settles
+    if M.reloadTimer then M.reloadTimer:stop() end
+    M.reloadTimer = hs.timer.doAfter(3, function()
+      hs.notify.new({ title = "School Buddy 🎒", informativeText = "Bijgewerkt — configuratie herladen" }):send()
+      hs.reload()
+    end)
+  end)
+  M.configWatcher:start()
+end
+
 function M.start()
   if menubar then
     menubar:setTitle("🎒")
@@ -205,6 +236,9 @@ function M.start()
     menubar:setClickCallback(quickChat)
   end
   watcher:start()
+  watchForUpdates()
+  -- reload on demand too: `open -g "hammerspoon://school-buddy-reload"`
+  hs.urlevent.bind("school-buddy-reload", function() hs.reload() end)
   -- also poll while the lid stays open (lessons end without a sleep/wake)
   M.timer = hs.timer.doEvery(5 * 60, checkPending)
   sendSignal("startup")

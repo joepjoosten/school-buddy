@@ -125,7 +125,14 @@ if [ ! -f "$HS_INIT" ] || ! grep -qF "school-buddy.lua" "$HS_INIT"; then
   echo "dofile(\"$DEST/hammerspoon/school-buddy.lua\")" >> "$HS_INIT"
 fi
 if [ -n "$HS_APP" ]; then
-  open -a "$HS_APP" || true
+  if pgrep -qx Hammerspoon; then
+    # already running: it keeps executing the old config until it reloads.
+    # The shipped config watches this directory and reloads itself; this URL
+    # is the immediate nudge (works once a config with the handler is loaded).
+    open -g "hammerspoon://school-buddy-reload" 2>/dev/null || true
+  else
+    open -a "$HS_APP" || true
+  fi
 fi
 
 echo
