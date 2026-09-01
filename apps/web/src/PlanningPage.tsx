@@ -9,6 +9,24 @@ import { addDays } from "./WeekGrid.tsx"
 
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
+/**
+ * Experimental layout: four columns over two rows, with Sunday as a tall
+ * column on the right.
+ *   ma  di  wo  | zo
+ *   do  vr  za  | (zo continues)
+ */
+const PLACEMENT: ReadonlyArray<{ column: number; row: number; span: number }> = [
+  { column: 1, row: 1, span: 1 }, // maandag
+  { column: 2, row: 1, span: 1 }, // dinsdag
+  { column: 3, row: 1, span: 1 }, // woensdag
+  { column: 1, row: 2, span: 1 }, // donderdag
+  { column: 2, row: 2, span: 1 }, // vrijdag
+  { column: 3, row: 2, span: 1 }, // zaterdag
+  { column: 4, row: 1, span: 2 } //  zondag, full height
+]
+
+const isWeekend = (index: number): boolean => index >= 5
+
 const dutchDate = (day: string): string =>
   new Date(`${day}T12:00:00`).toLocaleDateString("nl-NL", {
     weekday: "long",
@@ -28,7 +46,7 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
 
   if (week === null) return <p className="hint">Planning laden…</p>
 
-  const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
+  const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i), index: i }))
 
   const toggle = async (item: PlanItem) => {
     await runEffect(setPlanItemDone(item.id, !item.done))
@@ -50,7 +68,16 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
         const items = week.items.filter((p) => p.day === d.date)
         const total = items.filter((p) => !p.done).reduce((sum, p) => sum + p.durationMinutes, 0)
         return (
-          <div key={d.date} className={`plan-day${d.date === today ? " today" : ""}${d.date < today ? " past" : ""}`}>
+          <div
+            key={d.date}
+            className={`plan-day${d.date === today ? " today" : ""}${
+              d.date < today ? " past" : ""
+            }${isWeekend(d.index) ? " weekend" : ""}`}
+            style={{
+              gridColumn: PLACEMENT[d.index]!.column,
+              gridRow: `${PLACEMENT[d.index]!.row} / span ${PLACEMENT[d.index]!.span}`
+            }}
+          >
             <h3>
               {d.name} <small>{d.date.slice(8, 10)}-{d.date.slice(5, 7)}</small>
               {total > 0 && <span className="plan-total">{minutesLabel(total)}</span>}
