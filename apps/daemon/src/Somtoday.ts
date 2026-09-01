@@ -1,4 +1,4 @@
-import type { HomeworkItem, Lesson, School } from "@school-buddy/shared"
+import type { HomeworkItem, Lesson, School, Vacation } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -113,6 +113,7 @@ export interface SyncResult {
   readonly lessons: number
   readonly homework: number
   readonly changes: number
+  readonly vacations: number
 }
 
 export interface SomtodayShape {
@@ -186,6 +187,16 @@ const subjectFromLesgroep = (lesgroep: unknown): string | null => {
   const last = naam.split(".").at(-1) ?? naam
   const stripped = last.replace(/\d+$/, "")
   return stripped.length > 0 ? stripped : naam
+}
+
+const mapVacation = (item: Record<string, unknown>): Vacation | null => {
+  const id = linkId(item)
+  const name = asString(item["naam"])
+  const begin = asString(item["beginDatum"])
+  const eind = asString(item["eindDatum"])
+  if (id === "" || name === null || begin === null || eind === null) return null
+  // these are whole days; the date part is the local day Somtoday means
+  return { id, name, startDay: begin.slice(0, 10), endDay: eind.slice(0, 10) }
 }
 
 const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
@@ -322,6 +333,20 @@ const makeSomtoday = Effect.gen(function* () {
       return all
     })
 
+  const fetchVacations = (
+    auth: { accessToken: string; apiUrl: string }
+  ): Effect.Effect<Array<Vacation>, SomtodayError> =>
+    Effect.gen(function* () {
+      const leerlingen = yield* apiGetAll(auth, "leerlingen", {})
+      const student = leerlingen[0]
+      const id = student === undefined ? "" : linkId(student)
+      if (id === "") {
+        return yield* new SomtodayError({ reason: "http", detail: "geen leerling gevonden" })
+      }
+      const items = yield* apiGetAll(auth, `vakanties/leerling/${id}`, {})
+      return items.map(mapVacation).filter((v): v is Vacation => v !== null)
+    })
+
   const sync: Effect.Effect<SyncResult, SomtodayError> = Effect.gen(function* () {
     const auth = yield* refreshAccessToken
     // rolling window: two weeks back until ~a trimester (16 weeks) ahead
@@ -349,8 +374,21 @@ const makeSomtoday = Effect.gen(function* () {
       .filter((h): h is HomeworkItem => h !== null)
     yield* store.upsertSomtodayHomework(items)
 
+    // vacations and free days, keyed on the student id
+    const vacations = yield* fetchVacations(auth).pipe(
+      Effect.catchTag("SomtodayError", (error) =>
+        Effect.logWarning(`vacation sync failed: ${error.detail}`).pipe(Effect.map(() => null))
+      )
+    )
+    if (vacations !== null) yield* store.replaceVacations(vacations)
+
     yield* store.setMeta("somtoday.lastSync", new Date().toISOString())
-    return { lessons: lessons.length, homework: items.length, changes: changes.length }
+    return {
+      lessons: lessons.length,
+      homework: items.length,
+      changes: changes.length,
+      vacations: vacations?.length ?? 0
+    }
   }).pipe(
     // a 401 from the API means the cached access token is no longer valid
     Effect.tapError((error) =>

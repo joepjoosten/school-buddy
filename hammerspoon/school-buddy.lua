@@ -2,6 +2,8 @@
 -- Watches lid/wake events, shows question popups, menu bar icon.
 -- The brains live in the local daemon (apps/daemon), this file is only UI + signals.
 
+local hs = hs
+
 local M = {}
 
 local DAEMON = "http://127.0.0.1:4823"

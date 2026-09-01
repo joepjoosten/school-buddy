@@ -60,6 +60,15 @@ export type HomeworkInput = typeof HomeworkInput.Type
 
 // --- Week view ------------------------------------------------------------
 
+export const Vacation = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  /** inclusive local calendar days */
+  startDay: Schema.String,
+  endDay: Schema.String
+})
+export type Vacation = typeof Vacation.Type
+
 export const WeekData = Schema.Struct({
   /** ISO year/week the data covers */
   year: Schema.Number,
@@ -67,7 +76,9 @@ export const WeekData = Schema.Struct({
   /** YYYY-MM-DD of the Monday */
   monday: Schema.String,
   lessons: Schema.Array(Lesson),
-  homework: Schema.Array(HomeworkItem)
+  homework: Schema.Array(HomeworkItem),
+  /** vacations and free days overlapping this week */
+  vacations: Schema.Array(Vacation)
 })
 export type WeekData = typeof WeekData.Type
 

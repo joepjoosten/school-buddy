@@ -221,7 +221,7 @@ const SomtodayApiLive = HttpApiBuilder.group(Api, "somtoday", (handlers) =>
           Effect.map((result) => ({
             ok: true,
             message:
-              `${result.lessons} lessen en ${result.homework} huiswerkitems opgehaald, ${result.changes} roosterwijzigingen`
+              `${result.lessons} lessen, ${result.homework} huiswerkitems en ${result.vacations} vakanties opgehaald, ${result.changes} roosterwijzigingen`
           })),
           Effect.catchTag("SomtodayError", (error) =>
             Effect.succeed({ ok: false, message: `${error.reason}: ${error.detail}` }))

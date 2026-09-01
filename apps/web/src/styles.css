@@ -161,6 +161,21 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.7rem;
   font-weight: 700; color: #ef4444; background: #fff; padding: 0 3px; border-radius: 4px; z-index: 2;
 }
+/* vacations / free days */
+.cal-day.vacation { background-color: #fef9c3; }
+.cal-day.today.vacation { background-color: #fdf2b8; }
+.cal-day-head.vacation { background: #fef08a; color: #713f12; }
+.cal-day-head .vacation-name {
+  display: block; font-size: 0.66rem; font-weight: 600; color: #854d0e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vacation-banner {
+  position: absolute; top: 4px; left: 4px; right: 4px; z-index: 1;
+  background: #fde68a; border: 1px solid #facc15; border-radius: 6px;
+  padding: 0.15rem 0.35rem; font-size: 0.66rem; font-weight: 600; color: #713f12;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.hw-day.vacation { background: #fefce8; }
 .cal-divider { border: 0; border-top: 2px solid #d5dbe8; margin: 0.4rem 0; }
 
 /* --- homework beneath the calendar -------------------------------------- */

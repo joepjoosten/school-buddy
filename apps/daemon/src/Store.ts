@@ -14,6 +14,7 @@ import type {
   RosterChange,
   Settings,
   Signal,
+  Vacation,
   WeekData
 } from "@school-buddy/shared"
 import { defaultSettings, Settings as SettingsSchema } from "@school-buddy/shared"
@@ -44,6 +45,9 @@ export interface StoreShape {
   readonly recentChanges: (limit: number) => Effect.Effect<Array<RosterChange>>
   readonly unnotifiedChanges: (untilDateExclusive: string) => Effect.Effect<Array<RosterChange>>
   readonly markChangesNotified: (ids: ReadonlyArray<string>) => Effect.Effect<void>
+  readonly replaceVacations: (vacations: ReadonlyArray<Vacation>) => Effect.Effect<void>
+  /** vacations overlapping [fromDay, toDayExclusive) */
+  readonly vacationsBetween: (fromDay: string, toDayExclusive: string) => Effect.Effect<Array<Vacation>>
   readonly weekData: (date: string) => Effect.Effect<WeekData>
   readonly lessonsEndedBetween: (fromIso: string, toIso: string) => Effect.Effect<Array<Lesson>>
   readonly nextLessonForSubject: (
@@ -169,6 +173,12 @@ const migrations = [
     kind text not null,
     at text not null
   )`,
+  `create table if not exists vacations (
+    id text primary key,
+    name text not null,
+    start_day text not null,
+    end_day text not null
+  )`,
   `create table if not exists meta (
     key text primary key,
     value text not null
@@ -241,6 +251,20 @@ const chatMessageFromRow = (row: ChatMessageRow): ChatMessage => {
     attachments
   }
 }
+
+interface VacationRow {
+  readonly id: string
+  readonly name: string
+  readonly start_day: string
+  readonly end_day: string
+}
+
+const vacationFromRow = (row: VacationRow): Vacation => ({
+  id: row.id,
+  name: row.name,
+  startDay: row.start_day,
+  endDay: row.end_day
+})
 
 interface PlanItemRow {
   readonly id: string
@@ -446,6 +470,24 @@ const makeStore = Effect.gen(function* () {
         }
       }).pipe(Effect.orDie),
 
+    replaceVacations: (vacations) =>
+      Effect.gen(function* () {
+        yield* sql`delete from vacations`
+        for (const v of vacations) {
+          yield* sql`insert into vacations (id, name, start_day, end_day)
+            values (${v.id}, ${v.name}, ${v.startDay}, ${v.endDay})`
+        }
+      }).pipe(Effect.orDie),
+
+    vacationsBetween: (fromDay, toDayExclusive) =>
+      sql<VacationRow>`
+        select * from vacations
+        where start_day < ${toDayExclusive} and end_day >= ${fromDay}
+        order by start_day asc`.pipe(
+        Effect.map((rows) => rows.map(vacationFromRow)),
+        Effect.orDie
+      ),
+
     weekData: (date) =>
       Effect.gen(function* () {
         const bounds = weekBoundsOf(date)
@@ -460,12 +502,14 @@ const makeStore = Effect.gen(function* () {
           select * from homework
           where due_date >= ${bounds.monday} and due_date < ${bounds.nextMonday} and deleted = 0
           order by due_date asc, subject asc`
+        const vacations = yield* store.vacationsBetween(bounds.monday, bounds.nextMonday)
         return {
           year: bounds.year,
           week: bounds.week,
           monday: bounds.monday,
           lessons: lessonRows.map(lessonFromRow),
-          homework: homeworkRows.map(homeworkFromRow)
+          homework: homeworkRows.map(homeworkFromRow),
+          vacations
         } satisfies WeekData
       }).pipe(Effect.orDie),
 

@@ -126,6 +126,8 @@ export const WeekGrid = ({
   const now = useNow()
   const today = localToday()
   const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
+  const vacationOn = (day: string): string | null =>
+    week.vacations.find((v) => day >= v.startDay && day <= v.endDay)?.name ?? null
 
   const hhmmMinutes = (t: string): number => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
   const starts = [...week.lessons.map((l) => minutesOf(l.start)), ...periods.map((p) => hhmmMinutes(p.start))]
@@ -148,8 +150,16 @@ export const WeekGrid = ({
         <div className="cal-head">
           <div className="cal-gutter-head" />
           {days.map((d) => (
-            <div key={d.date} className={`cal-day-head${d.date === today ? " today" : ""}`}>
+            <div
+              key={d.date}
+              className={`cal-day-head${d.date === today ? " today" : ""}${
+                vacationOn(d.date) !== null ? " vacation" : ""
+              }`}
+            >
               {d.name} <small>{d.date.slice(8, 10)}-{d.date.slice(5, 7)}</small>
+              {vacationOn(d.date) !== null && (
+                <span className="vacation-name">{vacationOn(d.date)}</span>
+              )}
             </div>
           ))}
         </div>
@@ -182,9 +192,16 @@ export const WeekGrid = ({
           {days.map((d, i) => (
             <div
               key={d.date}
-              className={`cal-day${d.date === today ? " today" : ""}`}
+              className={`cal-day${d.date === today ? " today" : ""}${
+                vacationOn(d.date) !== null ? " vacation" : ""
+              }`}
               style={{ backgroundSize: `100% ${PX_PER_HOUR}px` }}
             >
+              {vacationOn(d.date) !== null && (
+                <div className="vacation-banner" title={vacationOn(d.date) ?? ""}>
+                  🌴 {vacationOn(d.date)}
+                </div>
+              )}
               {layoutDay(week.lessons.filter((l) => localDay(l.start) === d.date)).map(
                 ({ lesson, column, columns }) => {
                   const top = yOf(minutesOf(lesson.start))
@@ -236,9 +253,13 @@ export const WeekGrid = ({
         <div className="cal-gutter-head hw-label">huiswerk</div>
         {days.map((d) => {
           const items = week.homework.filter((h) => h.dueDate === d.date)
+          const vacation = vacationOn(d.date)
           return (
-            <div key={d.date} className={`hw-day${d.date === today ? " today" : ""}`}>
-              {items.length === 0 && <p className="empty">—</p>}
+            <div
+              key={d.date}
+              className={`hw-day${d.date === today ? " today" : ""}${vacation !== null ? " vacation" : ""}`}
+            >
+              {items.length === 0 && <p className="empty">{vacation !== null ? "🌴" : "—"}</p>}
               {items.map((h) => (
                 <HomeworkCard key={h.id} item={h} onToggle={onToggle} onDelete={onDelete} />
               ))}
