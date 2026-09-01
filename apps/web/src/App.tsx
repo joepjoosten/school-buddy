@@ -1,6 +1,6 @@
 import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { HomeworkItem } from "@school-buddy/shared"
-import { defaultSettings, parseLestijden } from "@school-buddy/shared"
+import { defaultSettings, parseLestijden, today as localToday } from "@school-buddy/shared"
 import * as Cause from "effect/Cause"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useState } from "react"
@@ -30,7 +30,7 @@ const useHashRoute = (): { route: string; params: URLSearchParams } => {
 
 export const App = () => {
   const { route, params } = useHashRoute()
-  const [anchor, setAnchor] = useState<string>(new Date().toISOString().slice(0, 10))
+  const [anchor, setAnchor] = useState<string>(localToday())
 
   // "#rooster?date=YYYY-MM-DD" (from a planning item) opens that week
   const requestedDate = params.get("date")
@@ -75,7 +75,7 @@ export const App = () => {
         <h1>🎒 School Buddy</h1>
         <nav>
           <button onClick={() => navigate((a) => addDays(a, -7))}>← vorige</button>
-          <button onClick={() => navigate(() => new Date().toISOString().slice(0, 10))}>
+          <button onClick={() => navigate(() => localToday())}>
             vandaag
           </button>
           <button onClick={() => navigate((a) => addDays(a, 7))}>volgende →</button>

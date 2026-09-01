@@ -2,6 +2,7 @@ import { useAtomValue } from "@effect/atom-react"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useEffect, useRef, useState } from "react"
 import { fetchChatHistory, runEffect, sendChat } from "./api.ts"
+import { localDay, today as localToday } from "@school-buddy/shared"
 import { healthAtom } from "./atoms.ts"
 import { Markdown } from "./Markdown.tsx"
 
@@ -54,11 +55,8 @@ const AttachmentChip = ({
   )
 }
 
-const dayOf = (iso: string): string => {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`
-}
-const today = (): string => dayOf(new Date().toISOString())
+const dayOf = (iso: string): string => localDay(iso)
+const today = (): string => localToday()
 const dayLabel = (day: string): string =>
   day === today()
     ? "vandaag"

@@ -2,15 +2,11 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { PlanItem } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { movePlanItem, replanHomework, runEffect, setPlanItemDone } from "./api.ts"
+import { today as localToday } from "@school-buddy/shared"
 import { planningAtom } from "./atoms.ts"
 import { addDays } from "./WeekGrid.tsx"
 
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
-
-const localToday = (): string => {
-  const d = new Date()
-  return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`
-}
 
 const dutchDate = (day: string): string =>
   new Date(`${day}T12:00:00`).toLocaleDateString("nl-NL", {

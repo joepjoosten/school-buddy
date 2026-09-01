@@ -1,3 +1,6 @@
+// summaries render local days/times; pin the school timezone (bun test uses UTC)
+process.env.SCHOOL_BUDDY_TZ = "Europe/Amsterdam"
+
 import type { Lesson } from "@school-buddy/shared"
 import { describe, expect, test } from "bun:test"
 import { diffLessons } from "../src/rosterDiff.ts"
@@ -7,8 +10,8 @@ const lesson = (over: Partial<Lesson> & { id: string }): Lesson => ({
   title: "wiskunde B",
   location: "t39",
   teacher: "HER61",
-  start: "2026-09-07T13:15:00.000+02:00",
-  end: "2026-09-07T14:05:00.000+02:00",
+  start: "2026-09-07T11:15:00.000Z", // 13:15 local
+  end: "2026-09-07T12:05:00.000Z",
   cancelled: false,
   periodStart: 6,
   periodEnd: 6,
@@ -40,8 +43,8 @@ describe("diffLessons", () => {
     const before = lesson({ id: "1" })
     const after = lesson({
       id: "2",
-      start: "2026-09-07T15:05:00.000+02:00",
-      end: "2026-09-07T15:55:00.000+02:00",
+      start: "2026-09-07T13:05:00.000Z", // 15:05 local
+      end: "2026-09-07T13:55:00.000Z",
       periodStart: 8,
       periodEnd: 8
     })
@@ -52,8 +55,14 @@ describe("diffLessons", () => {
   })
 
   test("a day going from nothing to many lessons is one 'published' event", () => {
-    const day = (id: string, h: number) =>
-      lesson({ id, start: `2026-10-05T${h}:15:00.000+02:00`, end: `2026-10-05T${h + 1}:05:00.000+02:00` })
+    const day = (id: string, h: number) => {
+      const pad = (n: number) => `${n}`.padStart(2, "0")
+      return lesson({
+        id,
+        start: `2026-10-05T${pad(h)}:15:00.000Z`,
+        end: `2026-10-05T${pad(h + 1)}:05:00.000Z`
+      })
+    }
     const changes = diffLessons([], [day("a", 8), day("b", 9), day("c", 10), day("d", 11)], window)
     expect(changes).toHaveLength(1)
     expect(changes[0]!.kind).toBe("published")

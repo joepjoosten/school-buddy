@@ -154,10 +154,13 @@ const linkId = (item: Record<string, unknown>): string => {
  */
 const mapAfspraak = (item: Record<string, unknown>): Lesson | null => {
   const additional = asObject(item["additionalObjects"]) ?? {}
-  const start = asString(item["beginDatumTijd"])
-  const end = asString(item["eindDatumTijd"])
+  const startRaw = asString(item["beginDatumTijd"])
+  const endRaw = asString(item["eindDatumTijd"])
   const id = linkId(item)
-  if (start === null || end === null || id === "") return null
+  if (startRaw === null || endRaw === null || id === "") return null
+  // Somtoday sends local time with an offset; instants are stored in UTC
+  const start = new Date(startRaw).toISOString()
+  const end = new Date(endRaw).toISOString()
   const vak = asObject(additional["vak"])
   const titel = asString(item["titel"]) ?? "les"
   const parts = titel.split(" - ")

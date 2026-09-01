@@ -1,4 +1,5 @@
 import type { Lesson, RosterChange } from "@school-buddy/shared"
+import { localDay, localTime } from "@school-buddy/shared"
 
 /** A detected change before it gets an id / timestamp in the store. */
 export type DetectedChange = Omit<RosterChange, "id" | "detectedAt" | "notified">
@@ -12,8 +13,8 @@ export const dayLabel = (date: string): string => {
   return `${DAYS[dt.getDay()]} ${dt.getDate()} ${MONTHS[dt.getMonth()]}`
 }
 
-const dateOf = (l: Lesson): string => l.start.slice(0, 10)
-const timeOf = (iso: string): string => iso.slice(11, 16)
+const dateOf = (l: Lesson): string => localDay(l.start)
+const timeOf = (iso: string): string => localTime(iso)
 
 const periodLabel = (l: Lesson): string => {
   if (l.periodStart === null) return timeOf(l.start)

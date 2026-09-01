@@ -1,5 +1,5 @@
 import type { ChatAttachment } from "@school-buddy/shared"
-import { isNewerVersion } from "@school-buddy/shared"
+import { isNewerVersion, localDay } from "@school-buddy/shared"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -121,7 +121,7 @@ const PromptsLive = HttpApiBuilder.group(Api, "prompts", (handlers) =>
             yield* store.createHomework(
               {
                 subject: prompt.subject ?? "onbekend",
-                dueDate: next !== null ? next.start.slice(0, 10) : toDateOnly(fallback),
+                dueDate: next !== null ? localDay(next.start) : toDateOnly(fallback),
                 description: answer,
                 lessonId: prompt.lessonId
               },

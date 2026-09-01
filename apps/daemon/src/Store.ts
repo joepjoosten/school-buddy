@@ -23,6 +23,7 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { SqlClient } from "effect/unstable/sql/SqlClient"
+import { dayStartInstant } from "@school-buddy/shared"
 import { diffLessons } from "./rosterDiff.ts"
 import { toDateOnly, weekBoundsOf } from "./time.ts"
 
@@ -138,14 +139,12 @@ const migrations = [
   )`,
   // added later; ignored when the column already exists (see migrate loop)
   `alter table lessons add column period_start integer`,
-  // Lessons are stored in local time with an offset ("...+02:00") for display,
-  // which cannot be string-compared with UTC markers ("...Z"). These mirror
-  // columns hold UTC so range queries are correct.
-  `alter table lessons add column start_utc text`,
-  `alter table lessons add column end_utc text`,
-  `update lessons set start_utc = strftime('%Y-%m-%dT%H:%M:%SZ', start),
-                      end_utc = strftime('%Y-%m-%dT%H:%M:%SZ', end)
-     where start_utc is null or end_utc is null`,
+  // Instants are stored in UTC. Rows written by older versions kept local
+  // time with an offset ("...+02:00"), which cannot be compared with UTC
+  // markers, so they are converted in place once.
+  `update lessons set start = strftime('%Y-%m-%dT%H:%M:%S.000Z', start),
+                      end = strftime('%Y-%m-%dT%H:%M:%S.000Z', end)
+     where start not like '%Z'`,
   `alter table lessons add column period_end integer`,
   `create table if not exists homework (
     id text primary key,
@@ -382,14 +381,14 @@ const makeStore = Effect.gen(function* () {
   const store: StoreShape = {
     replaceLessons: (lessons, fromDate, toDateExclusive) =>
       Effect.gen(function* () {
-        yield* sql`delete from lessons where start >= ${fromDate} and start < ${toDateExclusive}`
+        const from = dayStartInstant(fromDate)
+        const to = dayStartInstant(toDateExclusive)
+        yield* sql`delete from lessons where start >= ${from} and start < ${to}`
         for (const l of lessons) {
           yield* sql`insert or replace into lessons
-            (id, subject, title, location, teacher, start, end, cancelled, period_start, period_end,
-             start_utc, end_utc)
+            (id, subject, title, location, teacher, start, end, cancelled, period_start, period_end)
             values (${l.id}, ${l.subject}, ${l.title}, ${l.location}, ${l.teacher},
-                    ${l.start}, ${l.end}, ${l.cancelled ? 1 : 0}, ${l.periodStart}, ${l.periodEnd},
-                    ${new Date(l.start).toISOString()}, ${new Date(l.end).toISOString()})`
+                    ${l.start}, ${l.end}, ${l.cancelled ? 1 : 0}, ${l.periodStart}, ${l.periodEnd})`
         }
       }).pipe(Effect.orDie),
 
@@ -400,7 +399,8 @@ const makeStore = Effect.gen(function* () {
         // first sync ever: just seed the baseline, nothing to compare against
         if (syncedUntil !== null) {
           const rows = yield* sql<LessonRow>`
-            select * from lessons where start >= ${fromDate} and start < ${toDateExclusive}`
+            select * from lessons
+            where start >= ${dayStartInstant(fromDate)} and start < ${dayStartInstant(toDateExclusive)}`
           const today = toDateOnly(new Date())
           const changes = diffLessons(rows.map(lessonFromRow), lessons, {
             from: today > fromDate ? today : fromDate,
@@ -450,9 +450,12 @@ const makeStore = Effect.gen(function* () {
     weekData: (date) =>
       Effect.gen(function* () {
         const bounds = weekBoundsOf(date)
+        // the week runs from local midnight to local midnight
+        const fromInstant = dayStartInstant(bounds.monday)
+        const toInstant = dayStartInstant(bounds.nextMonday)
         const lessonRows = yield* sql<LessonRow>`
           select * from lessons
-          where start >= ${bounds.monday} and start < ${bounds.nextMonday}
+          where start >= ${fromInstant} and start < ${toInstant}
           order by start asc`
         const homeworkRows = yield* sql<HomeworkRow>`
           select * from homework
@@ -470,8 +473,8 @@ const makeStore = Effect.gen(function* () {
     lessonsEndedBetween: (fromIso, toIso) =>
       sql<LessonRow>`
         select * from lessons
-        where end_utc > ${fromIso} and end_utc <= ${toIso} and cancelled = 0
-        order by end_utc asc`.pipe(
+        where end > ${fromIso} and end <= ${toIso} and cancelled = 0
+        order by end asc`.pipe(
         Effect.map((rows) => rows.map(lessonFromRow)),
         Effect.orDie
       ),
@@ -479,8 +482,8 @@ const makeStore = Effect.gen(function* () {
     nextLessonForSubject: (subject, afterIso) =>
       sql<LessonRow>`
         select * from lessons
-        where subject = ${subject} and start_utc > ${afterIso} and cancelled = 0
-        order by start_utc asc limit 1`.pipe(
+        where subject = ${subject} and start > ${afterIso} and cancelled = 0
+        order by start asc limit 1`.pipe(
         Effect.map((rows) => (rows[0] ? lessonFromRow(rows[0]) : null)),
         Effect.orDie
       ),
@@ -823,8 +826,9 @@ const makeStore = Effect.gen(function* () {
     dayLoads: (fromDate, toDateExclusive) =>
       Effect.gen(function* () {
         const lessons = yield* sql<{ readonly day: string; readonly n: number }>`
-          select substr(start, 1, 10) as day, count(*) as n from lessons
-          where start >= ${fromDate} and start < ${toDateExclusive} and cancelled = 0
+          select date(start, 'localtime') as day, count(*) as n from lessons
+          where start >= ${dayStartInstant(fromDate)} and start < ${dayStartInstant(toDateExclusive)}
+            and cancelled = 0
           group by day`
         const planned = yield* sql<{ readonly day: string; readonly minutes: number }>`
           select day, sum(duration_minutes) as minutes from plan_items

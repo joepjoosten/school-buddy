@@ -10,9 +10,9 @@ export const Lesson = Schema.Struct({
   title: Schema.String,
   location: Schema.NullOr(Schema.String),
   teacher: Schema.NullOr(Schema.String),
-  /** ISO datetime */
+  /** UTC instant (…Z); render with localTime/localDay */
   start: Schema.String,
-  /** ISO datetime */
+  /** UTC instant (…Z) */
   end: Schema.String,
   cancelled: Schema.Boolean,
   /** school period numbers ("lesuur"), null when Somtoday doesn't provide them */

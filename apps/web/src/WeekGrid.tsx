@@ -1,4 +1,5 @@
 import type { HomeworkItem, Lesson, Period, WeekData } from "@school-buddy/shared"
+import { localDay, localMinutes, localTime, today as localToday } from "@school-buddy/shared"
 import { useEffect, useState } from "react"
 
 export const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
@@ -13,18 +14,10 @@ export const addDays = (dateOnly: string, days: number): string => {
   return d.toISOString().slice(0, 10)
 }
 
-const localToday = (): string => {
-  const d = new Date()
-  const m = `${d.getMonth() + 1}`.padStart(2, "0")
-  const day = `${d.getDate()}`.padStart(2, "0")
-  return `${d.getFullYear()}-${m}-${day}`
-}
+/** lesson instants are UTC; the grid is drawn in the student's local time */
+const minutesOf = (iso: string): number => localMinutes(iso)
 
-/** minutes since midnight, from the local-time part of an ISO timestamp */
-const minutesOf = (iso: string): number =>
-  Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16))
-
-const hhmm = (iso: string): string => iso.slice(11, 16)
+const hhmm = (iso: string): string => localTime(iso)
 
 interface Placed {
   readonly lesson: Lesson
@@ -192,7 +185,7 @@ export const WeekGrid = ({
               className={`cal-day${d.date === today ? " today" : ""}`}
               style={{ backgroundSize: `100% ${PX_PER_HOUR}px` }}
             >
-              {layoutDay(week.lessons.filter((l) => l.start.slice(0, 10) === d.date)).map(
+              {layoutDay(week.lessons.filter((l) => localDay(l.start) === d.date)).map(
                 ({ lesson, column, columns }) => {
                   const top = yOf(minutesOf(lesson.start))
                   const height = Math.max(

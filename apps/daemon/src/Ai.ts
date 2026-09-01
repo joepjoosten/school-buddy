@@ -12,7 +12,7 @@ import type {
   Lesson,
   Settings
 } from "@school-buddy/shared"
-import { defaultAiModels } from "@school-buddy/shared"
+import { defaultAiModels, localDay, localTime } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -661,7 +661,7 @@ Als je echt niet kunt inschatten wat er nodig is (bv. onduidelijk hoe groot het 
 
       const lessonList = upcoming
         .slice(0, 12)
-        .map((l) => `- ${l.subject} op ${l.start.slice(0, 10)} om ${l.start.slice(11, 16)}`)
+        .map((l) => `- ${l.subject} op ${localDay(l.start)} om ${localTime(l.start)}`)
         .join("\n")
 
       const run = LanguageModel.generateObject({
