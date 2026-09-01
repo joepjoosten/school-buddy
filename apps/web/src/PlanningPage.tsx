@@ -4,6 +4,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { movePlanItem, replanHomework, runEffect, setPlanItemDone } from "./api.ts"
 import { today as localToday } from "@school-buddy/shared"
 import { planningAtom } from "./atoms.ts"
+import { useFreshData } from "./useFreshData.ts"
 import { addDays } from "./WeekGrid.tsx"
 
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
@@ -23,6 +24,7 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
   const refresh = useAtomRefresh(planningAtom(anchor))
   const week = AsyncResult.isSuccess(result) ? result.value : null
   const today = localToday()
+  useFreshData(refresh)
 
   if (week === null) return <p className="hint">Planning laden…</p>
 

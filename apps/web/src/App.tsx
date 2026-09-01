@@ -11,6 +11,7 @@ import { ChatPage } from "./ChatPage.tsx"
 import { LogsPage } from "./LogsPage.tsx"
 import { PlanningPage } from "./PlanningPage.tsx"
 import { SettingsPage } from "./SettingsPage.tsx"
+import { useFreshData } from "./useFreshData.ts"
 import { addDays, WeekGrid } from "./WeekGrid.tsx"
 
 /** Hash routing with query support: "#chat?q=..." → route "#chat" + params. */
@@ -53,6 +54,11 @@ export const App = () => {
   const periods = parseLestijden(
     AsyncResult.isSuccess(settingsResult) ? settingsResult.value.lestijden : defaultSettings.lestijden
   )
+
+  // the buddy can add homework from the chat, so refetch when the rooster
+  // is shown again instead of serving the cached week
+  const onRoosterPage = !["#instellingen", "#chat", "#logs", "#wijzigingen", "#planning"].includes(route)
+  useFreshData(refresh, onRoosterPage)
 
   const toggle = async (item: HomeworkItem) => {
     await runEffect(setHomeworkDone(item.id, !item.done))
@@ -110,7 +116,7 @@ export const App = () => {
       {route === "#logs" && <LogsPage />}
       {route === "#wijzigingen" && <ChangesPage />}
       {route === "#planning" && <PlanningPage anchor={anchor} />}
-      {!["#instellingen", "#chat", "#logs", "#wijzigingen", "#planning"].includes(route) && week && (
+      {onRoosterPage && week && (
         <main className="rooster">
           <WeekGrid week={week} periods={periods} onToggle={toggle} onDelete={remove} />
         </main>
