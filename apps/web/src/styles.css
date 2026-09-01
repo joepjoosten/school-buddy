@@ -271,10 +271,10 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 }
 .plan-day { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; padding: 0.5rem; min-height: 8rem; }
 /* the weekend shares one cell, split into two smaller day blocks */
-.plan-day.weekend { background: #faf8ff; border-color: #ddd6fe; display: flex; flex-direction: column; }
+.plan-day.weekend { display: flex; flex-direction: column; }
 .weekend-days { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
 .weekend-day {
-  background: #fff; border: 1px solid #ece9fb; border-radius: 8px; padding: 0.35rem 0.4rem; flex: 1;
+  background: #fff; border: 1px solid #e3e8f2; border-radius: 8px; padding: 0.35rem 0.4rem; flex: 1;
 }
 .weekend-day.today { background: #e8ecff; border-color: #a5b4fc; }
 .weekend-day.past { opacity: 0.6; }
