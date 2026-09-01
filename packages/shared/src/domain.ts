@@ -41,7 +41,10 @@ export type HomeworkSource = typeof HomeworkSource.Type
 
 export const HomeworkItem = Schema.Struct({
   id: Schema.String,
+  /** short code, e.g. "biol" */
   subject: Schema.String,
+  /** full course name, e.g. "biologie"; falls back to the code */
+  subjectName: Schema.String,
   /** YYYY-MM-DD the homework is due */
   dueDate: Schema.String,
   description: Schema.String,

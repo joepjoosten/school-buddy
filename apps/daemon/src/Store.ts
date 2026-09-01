@@ -187,6 +187,7 @@ const migrations = [
   `alter table homework add column deleted integer not null default 0`,
   `alter table homework add column kind text not null default 'unknown'`,
   `alter table homework add column hw_type text not null default 'overig'`,
+  `alter table homework add column subject_name text`,
   `create table if not exists plan_items (
     id text primary key,
     homework_id text not null,
@@ -281,6 +282,7 @@ interface PlanItemRow {
   readonly created_at: string
   readonly kind: string | null
   readonly hw_type: string | null
+  readonly subject_name: string | null
 }
 
 const planItemFromRow = (row: PlanItemRow): PlanItem => ({
@@ -346,6 +348,7 @@ interface HomeworkRow {
   readonly created_at: string
   readonly kind: string | null
   readonly hw_type: string | null
+  readonly subject_name: string | null
 }
 
 interface PromptRow {
@@ -375,6 +378,7 @@ const lessonFromRow = (row: LessonRow): Lesson => ({
 const homeworkFromRow = (row: HomeworkRow): HomeworkItem => ({
   id: row.id,
   subject: row.subject,
+  subjectName: row.subject_name ?? row.subject,
   dueDate: row.due_date,
   description: row.description,
   source: row.source as HomeworkItem["source"],
@@ -547,6 +551,7 @@ const makeStore = Effect.gen(function* () {
         const item: HomeworkItem = {
           id: crypto.randomUUID(),
           subject: input.subject,
+          subjectName: input.subject,
           dueDate: input.dueDate,
           description: input.description,
           source,
@@ -557,9 +562,11 @@ const makeStore = Effect.gen(function* () {
           type: "overig"
         }
         yield* sql`insert into homework
-          (id, subject, due_date, description, source, lesson_id, done, created_at, kind, hw_type)
-          values (${item.id}, ${item.subject}, ${item.dueDate}, ${item.description},
-                  ${item.source}, ${item.lessonId}, 0, ${item.createdAt}, 'unknown', ${item.type})`
+          (id, subject, subject_name, due_date, description, source, lesson_id, done, created_at,
+           kind, hw_type)
+          values (${item.id}, ${item.subject}, ${item.subjectName}, ${item.dueDate},
+                  ${item.description}, ${item.source}, ${item.lessonId}, 0, ${item.createdAt},
+                  'unknown', ${item.type})`
         return item
       }).pipe(Effect.orDie),
 
@@ -568,12 +575,14 @@ const makeStore = Effect.gen(function* () {
         for (const item of items) {
           // keep local "done" flag when re-syncing
           yield* sql`insert into homework
-            (id, subject, due_date, description, source, lesson_id, done, created_at, hw_type)
-            values (${item.id}, ${item.subject}, ${item.dueDate}, ${item.description},
-                    ${item.source}, ${item.lessonId}, ${item.done ? 1 : 0}, ${item.createdAt},
-                    ${item.type})
+            (id, subject, subject_name, due_date, description, source, lesson_id, done, created_at,
+             hw_type)
+            values (${item.id}, ${item.subject}, ${item.subjectName}, ${item.dueDate},
+                    ${item.description}, ${item.source}, ${item.lessonId}, ${item.done ? 1 : 0},
+                    ${item.createdAt}, ${item.type})
             on conflict(id) do update set
               subject = excluded.subject,
+              subject_name = excluded.subject_name,
               due_date = excluded.due_date,
               description = excluded.description,
               lesson_id = excluded.lesson_id,

@@ -76,29 +76,43 @@ const HomeworkCard = ({
   onToggle: (item: HomeworkItem) => void
   onDelete: (item: HomeworkItem) => void
 }) => (
-  <div className={`homework${item.done ? " done" : ""}${item.kind === "reminder" ? " reminder" : ""}`}>
-    <label>
-      <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
-      <span className="subject">{item.subject}</span>
-      {item.type === "toets" && <span className="toets-badge">Toets</span>}
-      <span className="desc">
+  <div
+    className={`homework${item.done ? " done" : ""}${item.kind === "reminder" ? " reminder" : ""}${
+      item.type === "toets" ? " toets" : ""
+    }`}
+  >
+    <div className="hw-head">
+      <input
+        type="checkbox"
+        checked={item.done}
+        onChange={() => onToggle(item)}
+        title={item.done ? "weer openzetten" : "afvinken"}
+      />
+      <span className="subject" title={item.subject}>
         {item.kind === "reminder" && <span title="meenemen — geen leertijd nodig">🎒 </span>}
-        {item.description}
+        {item.subjectName}
       </span>
-      <span className="source" title={item.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}>
-        {item.source === "somtoday" ? "S" : "✍️"}
+      {item.type === "toets" && <span className="toets-badge">Toets</span>}
+      <span className="hw-actions">
+        <span
+          className="source"
+          title={item.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}
+        >
+          {item.source === "somtoday" ? "S" : "✍️"}
+        </span>
+        <button
+          type="button"
+          className="hw-delete"
+          title="Verwijderen"
+          onClick={() => {
+            if (window.confirm(`"${item.description}" verwijderen?`)) onDelete(item)
+          }}
+        >
+          ✕
+        </button>
       </span>
-    </label>
-    <button
-      type="button"
-      className="hw-delete"
-      title="Verwijderen"
-      onClick={() => {
-        if (window.confirm(`"${item.description}" verwijderen?`)) onDelete(item)
-      }}
-    >
-      ✕
-    </button>
+    </div>
+    <p className="desc">{item.description}</p>
   </div>
 )
 

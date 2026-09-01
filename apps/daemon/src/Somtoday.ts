@@ -180,6 +180,24 @@ const mapAfspraak = (item: Record<string, unknown>): Lesson | null => {
   }
 }
 
+const ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " "
+}
+
+/** Somtoday sends HTML: turn it into readable plain text. */
+export const htmlToText = (html: string): string =>
+  html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(Number(dec)))
+    .replace(/&([a-z]+);/gi, (match, name: string) => ENTITIES[name.toLowerCase()] ?? match)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+
 /** "vw4.biol1" → "biol": the lesgroep name carries the subject code. */
 const subjectFromLesgroep = (lesgroep: unknown): string | null => {
   const naam = asString(asObject(lesgroep)?.["naam"])
@@ -205,10 +223,8 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
   const dueRaw = asString(item["datumTijd"])
   if (id === "" || dueRaw === null) return null
   const onderwerp = asString(studiewijzerItem["onderwerp"])
-  const omschrijving = (asString(studiewijzerItem["omschrijving"]) ?? "")
-    .replace(/<[^>]+>/g, "")
-    .trim()
-  const description = omschrijving !== "" ? omschrijving : onderwerp
+  const omschrijving = htmlToText(asString(studiewijzerItem["omschrijving"]) ?? "")
+  const description = omschrijving !== "" ? omschrijving : onderwerp === null ? null : htmlToText(onderwerp)
   if (description === null || description === "") return null
   const huiswerkType = asString(studiewijzerItem["huiswerkType"])
   const type: HomeworkType = huiswerkType === "TOETS"
@@ -218,9 +234,13 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
     : huiswerkType === "LESSTOF"
     ? "lesstof"
     : "overig"
+  // the lesgroep carries the real course: afkorting "biol", naam "biologie"
+  const vak = asObject(asObject(item["lesgroep"])?.["vak"])
+  const subject = asString(vak?.["afkorting"]) ?? subjectFromLesgroep(item["lesgroep"]) ?? "onbekend"
   return {
     id: `somtoday-${id}`,
-    subject: subjectFromLesgroep(item["lesgroep"]) ?? onderwerp ?? "onbekend",
+    subject,
+    subjectName: asString(vak?.["naam"]) ?? subject,
     dueDate: dueRaw.slice(0, 10),
     description,
     source: "somtoday",
