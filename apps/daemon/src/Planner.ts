@@ -15,7 +15,7 @@ export const classifyByRules = (h: HomeworkItem): "task" | "reminder" => {
 }
 
 const isTest = (h: HomeworkItem): boolean =>
-  /\[TOETS\]|\btoets|\bso\b|proefwerk|overhoring|tentamen/i.test(h.description)
+  h.type === "toets" || /\btoets|\bso\b|proefwerk|overhoring|tentamen/i.test(h.description)
 
 /** Rule-based plan used when AI is unavailable. */
 const defaultPlan = (

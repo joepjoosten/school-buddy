@@ -33,6 +33,10 @@ export const HomeworkSource = Schema.Literals(["somtoday", "self"])
  */
 export const HomeworkKind = Schema.Literals(["task", "reminder", "info", "unknown"])
 export type HomeworkKind = typeof HomeworkKind.Type
+
+/** Somtoday's huiswerkType: a test, plain homework, or lesson material. */
+export const HomeworkType = Schema.Literals(["toets", "huiswerk", "lesstof", "overig"])
+export type HomeworkType = typeof HomeworkType.Type
 export type HomeworkSource = typeof HomeworkSource.Type
 
 export const HomeworkItem = Schema.Struct({
@@ -46,7 +50,8 @@ export const HomeworkItem = Schema.Struct({
   done: Schema.Boolean,
   /** ISO datetime */
   createdAt: Schema.String,
-  kind: HomeworkKind
+  kind: HomeworkKind,
+  type: HomeworkType
 })
 export type HomeworkItem = typeof HomeworkItem.Type
 

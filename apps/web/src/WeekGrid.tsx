@@ -80,6 +80,7 @@ const HomeworkCard = ({
     <label>
       <input type="checkbox" checked={item.done} onChange={() => onToggle(item)} />
       <span className="subject">{item.subject}</span>
+      {item.type === "toets" && <span className="toets-badge">Toets</span>}
       <span className="desc">
         {item.kind === "reminder" && <span title="meenemen — geen leertijd nodig">🎒 </span>}
         {item.description}
@@ -128,6 +129,11 @@ export const WeekGrid = ({
   const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
   const vacationOn = (day: string): string | null =>
     week.vacations.find((v) => day >= v.startDay && day <= v.endDay)?.name ?? null
+  /** a lesson is a test moment when a "toets" item is due that day for that subject */
+  const testFor = (lesson: Lesson): string | null =>
+    week.homework.find((h) =>
+      h.type === "toets" && h.dueDate === localDay(lesson.start) && h.subject === lesson.subject
+    )?.description ?? null
 
   const hhmmMinutes = (t: string): number => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
   const starts = [...week.lessons.map((l) => minutesOf(l.start)), ...periods.map((p) => hhmmMinutes(p.start))]
@@ -209,12 +215,13 @@ export const WeekGrid = ({
                     18,
                     yOf(minutesOf(lesson.end)) - top - 2
                   )
+                  const test = testFor(lesson)
                   return (
                     <div
                       key={lesson.id}
                       className={`cal-lesson${lesson.cancelled ? " cancelled" : ""}${
                         height < 40 ? " compact" : ""
-                      }`}
+                      }${test !== null ? " test" : ""}`}
                       style={{
                         top,
                         height,
@@ -223,8 +230,9 @@ export const WeekGrid = ({
                       }}
                       title={`${hhmm(lesson.start)}–${hhmm(lesson.end)} ${lesson.title}${
                         lesson.location ? ` (${lesson.location})` : ""
-                      }`}
+                      }${test !== null ? `\n\n📕 Toets: ${test}` : ""}`}
                     >
+                      {test !== null && <span className="test-dot" title={`Toets: ${test}`} />}
                       <span className="pill">
                         {periodLabel(lesson, periods) !== null && (
                           <span className="period">{periodLabel(lesson, periods)}</span>

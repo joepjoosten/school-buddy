@@ -612,7 +612,7 @@ Let op: een omschrijving met zowel werk als meenemen is "task".`
         objectName: "planning",
         schema: PlanProposal,
         prompt: `Je maakt een leerplanning voor een middelbare scholier (4 vwo).
-Vandaag is ${today}. Huiswerk: vak "${homework.subject}", inleveren/af op ${homework.dueDate}: "${homework.description}".
+Vandaag is ${today}. Huiswerk (soort volgens school: ${homework.type}): vak "${homework.subject}", inleveren/af op ${homework.dueDate}: "${homework.description}".
 Voorkeur van de leerling voor gewoon huiswerk: ${
           preference === "day-before" ? "de dag vóór de inleverdatum" : "op de dag dat het opgegeven is (zo snel mogelijk)"
         }.

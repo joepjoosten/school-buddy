@@ -148,6 +148,18 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-lesson.compact { padding: 0.05rem 0.3rem; white-space: nowrap; }
 .cal-lesson.compact .title { overflow: hidden; text-overflow: ellipsis; display: block; }
 .cal-lesson.compact .loc { display: none; }
+/* a lesson with a test: orange accent and dot, like Somtoday */
+.cal-lesson.test { border-color: #f59e0b; border-left-color: #ea580c; background: #ffedd5; }
+.cal-lesson.test .pill { background: #c2410c; }
+.test-dot {
+  position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px;
+  border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 2px #ffedd5;
+}
+.cal-lesson.compact .test-dot { bottom: 50%; transform: translateY(50%); }
+.toets-badge {
+  background: #ea580c; color: #fff; border-radius: 999px; padding: 0 0.4rem;
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+}
 .cal-lesson.cancelled { opacity: 0.45; text-decoration: line-through; }
 .cal-now {
   position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #ef4444;

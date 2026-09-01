@@ -1,4 +1,4 @@
-import type { HomeworkItem, Lesson, School, Vacation } from "@school-buddy/shared"
+import type { HomeworkItem, HomeworkType, Lesson, School, Vacation } from "@school-buddy/shared"
 import * as Context from "effect/Context"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
@@ -211,17 +211,24 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
   const description = omschrijving !== "" ? omschrijving : onderwerp
   if (description === null || description === "") return null
   const huiswerkType = asString(studiewijzerItem["huiswerkType"])
-  const prefix = huiswerkType !== null && huiswerkType.includes("TOETS") ? "[TOETS] " : ""
+  const type: HomeworkType = huiswerkType === "TOETS"
+    ? "toets"
+    : huiswerkType === "HUISWERK"
+    ? "huiswerk"
+    : huiswerkType === "LESSTOF"
+    ? "lesstof"
+    : "overig"
   return {
     id: `somtoday-${id}`,
     subject: subjectFromLesgroep(item["lesgroep"]) ?? onderwerp ?? "onbekend",
     dueDate: dueRaw.slice(0, 10),
-    description: `${prefix}${description}`,
+    description,
     source: "somtoday",
     lessonId: null,
     done: false,
     createdAt: new Date().toISOString(),
-    kind: "unknown"
+    kind: "unknown",
+    type
   }
 }
 
