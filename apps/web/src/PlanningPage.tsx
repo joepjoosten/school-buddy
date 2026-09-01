@@ -10,22 +10,12 @@ import { addDays } from "./WeekGrid.tsx"
 const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
 /**
- * Experimental layout: four columns over two rows, with Sunday as a tall
- * column on the right.
- *   ma  di  wo  | zo
- *   do  vr  za  | (zo continues)
+ * Layout: three columns over two rows, with the weekend sharing one cell.
+ *   ma  di  wo
+ *   do  vr  weekend (za + zo)
  */
-const PLACEMENT: ReadonlyArray<{ column: number; row: number; span: number }> = [
-  { column: 1, row: 1, span: 1 }, // maandag
-  { column: 2, row: 1, span: 1 }, // dinsdag
-  { column: 3, row: 1, span: 1 }, // woensdag
-  { column: 1, row: 2, span: 1 }, // donderdag
-  { column: 2, row: 2, span: 1 }, // vrijdag
-  { column: 3, row: 2, span: 1 }, // zaterdag
-  { column: 4, row: 1, span: 2 } //  zondag, full height
-]
-
-const isWeekend = (index: number): boolean => index >= 5
+const WEEKDAYS = [0, 1, 2, 3, 4] as const
+const WEEKEND = [5, 6] as const
 
 const dutchDate = (day: string): string =>
   new Date(`${day}T12:00:00`).toLocaleDateString("nl-NL", {
@@ -62,54 +52,89 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
     refresh()
   }
 
+  const dayEntry = (index: number) => ({
+    name: DAY_NAMES[index]!,
+    date: addDays(week.monday, index),
+    items: week.items.filter((p) => p.day === addDays(week.monday, index))
+  })
+
+  const totalOf = (items: ReadonlyArray<PlanItem>): number =>
+    items.filter((p) => !p.done).reduce((sum, p) => sum + p.durationMinutes, 0)
+
+  const renderItems = (items: ReadonlyArray<PlanItem>) =>
+    items.length === 0
+      ? <p className="empty">—</p>
+      : items.map((p) => (
+        <div key={p.id} className={`plan-item${p.done ? " done" : ""}`}>
+          <label>
+            <input type="checkbox" checked={p.done} onChange={() => toggle(p)} />
+            <span className="plan-title">{p.title}</span>
+          </label>
+          <div className="plan-meta">
+            <span className="subject">{p.subject}</span>
+            <span className="duration">{minutesLabel(p.durationMinutes)}</span>
+            <a
+              className="due"
+              href={`#rooster?date=${p.dueDate}`}
+              title={`${p.subject} — voor ${dutchDate(p.dueDate)}\n\n${p.homeworkDescription}\n\n(klik om die week in het rooster te openen)`}
+            >
+              voor {p.dueDate.slice(8, 10)}-{p.dueDate.slice(5, 7)}
+            </a>
+            <span className="plan-actions">
+              <button type="button" title="dag eerder" onClick={() => move(p, -1)}>◀</button>
+              <button type="button" title="dag later" onClick={() => move(p, 1)}>▶</button>
+              <button type="button" title="opnieuw inplannen" onClick={() => replan(p)}>↻</button>
+            </span>
+          </div>
+        </div>
+      ))
+
   return (
     <div className="planning">
-      {days.map((d) => {
-        const items = week.items.filter((p) => p.day === d.date)
-        const total = items.filter((p) => !p.done).reduce((sum, p) => sum + p.durationMinutes, 0)
+      {WEEKDAYS.map((index) => {
+        const d = dayEntry(index)
+        const total = totalOf(d.items)
         return (
           <div
             key={d.date}
-            className={`plan-day${d.date === today ? " today" : ""}${
-              d.date < today ? " past" : ""
-            }${isWeekend(d.index) ? " weekend" : ""}`}
-            style={{
-              gridColumn: PLACEMENT[d.index]!.column,
-              gridRow: `${PLACEMENT[d.index]!.row} / span ${PLACEMENT[d.index]!.span}`
-            }}
+            className={`plan-day${d.date === today ? " today" : ""}${d.date < today ? " past" : ""}`}
           >
             <h3>
               {d.name} <small>{d.date.slice(8, 10)}-{d.date.slice(5, 7)}</small>
               {total > 0 && <span className="plan-total">{minutesLabel(total)}</span>}
             </h3>
-            {items.length === 0 && <p className="empty">—</p>}
-            {items.map((p) => (
-              <div key={p.id} className={`plan-item${p.done ? " done" : ""}`}>
-                <label>
-                  <input type="checkbox" checked={p.done} onChange={() => toggle(p)} />
-                  <span className="plan-title">{p.title}</span>
-                </label>
-                <div className="plan-meta">
-                  <span className="subject">{p.subject}</span>
-                  <span className="duration">{minutesLabel(p.durationMinutes)}</span>
-                  <a
-                    className="due"
-                    href={`#rooster?date=${p.dueDate}`}
-                    title={`${p.subject} — voor ${dutchDate(p.dueDate)}\n\n${p.homeworkDescription}\n\n(klik om die week in het rooster te openen)`}
-                  >
-                    voor {p.dueDate.slice(8, 10)}-{p.dueDate.slice(5, 7)}
-                  </a>
-                  <span className="plan-actions">
-                    <button type="button" title="dag eerder" onClick={() => move(p, -1)}>◀</button>
-                    <button type="button" title="dag later" onClick={() => move(p, 1)}>▶</button>
-                    <button type="button" title="opnieuw inplannen" onClick={() => replan(p)}>↻</button>
-                  </span>
-                </div>
-              </div>
-            ))}
+            {renderItems(d.items)}
           </div>
         )
       })}
+      <div className="plan-day weekend">
+        <h3>
+          weekend
+          {totalOf(WEEKEND.flatMap((i) => dayEntry(i).items)) > 0 && (
+            <span className="plan-total">
+              {minutesLabel(totalOf(WEEKEND.flatMap((i) => dayEntry(i).items)))}
+            </span>
+          )}
+        </h3>
+        <div className="weekend-days">
+          {WEEKEND.map((index) => {
+            const d = dayEntry(index)
+            return (
+              <div
+                key={d.date}
+                className={`weekend-day${d.date === today ? " today" : ""}${
+                  d.date < today ? " past" : ""
+                }`}
+              >
+                <h4>
+                  {d.name} <small>{d.date.slice(8, 10)}-{d.date.slice(5, 7)}</small>
+                </h4>
+                {renderItems(d.items)}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

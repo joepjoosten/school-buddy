@@ -266,13 +266,24 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 
 /* --- planning ------------------------------------------------------------- */
 .planning {
-  display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(9rem, auto);
-  gap: 0.5rem; margin-top: 1rem;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(9rem, auto);
+  gap: 0.6rem; margin-top: 1rem;
 }
 .plan-day { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; padding: 0.5rem; min-height: 8rem; }
-.plan-day.weekend { background: #fbf9ff; border-color: #ddd6fe; }
+/* the weekend shares one cell, split into two smaller day blocks */
+.plan-day.weekend { background: #faf8ff; border-color: #ddd6fe; display: flex; flex-direction: column; }
+.weekend-days { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+.weekend-day {
+  background: #fff; border: 1px solid #ece9fb; border-radius: 8px; padding: 0.35rem 0.4rem; flex: 1;
+}
+.weekend-day.today { background: #e8ecff; border-color: #a5b4fc; }
+.weekend-day.past { opacity: 0.6; }
+.weekend-day h4 {
+  margin: 0 0 0.3rem; font-size: 0.75rem; text-transform: capitalize; color: #4a5670;
+}
+.weekend-day h4 small { color: #8a94ab; font-weight: 400; }
+.weekend-day .empty { margin: 0.1rem 0; }
 .plan-day.today { background: #e8ecff; border-color: #a5b4fc; }
-.plan-day.today.weekend { background: #e6e3ff; }
 .plan-day.past { opacity: 0.6; }
 .plan-day h3 { margin: 0 0 0.4rem; font-size: 0.85rem; text-transform: capitalize; display: flex; gap: 0.3rem; align-items: baseline; }
 .plan-day h3 small { color: #8a94ab; font-weight: 400; }
@@ -292,9 +303,7 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .plan-item:hover .plan-actions { opacity: 1; }
 .plan-actions button { padding: 0 0.3rem; font-size: 0.7rem; border-radius: 5px; }
 @media (max-width: 1000px) {
-  /* fall back to a simple two-column list; the placement is desktop-only */
   .planning { grid-template-columns: repeat(2, 1fr); }
-  .planning .plan-day { grid-column: auto !important; grid-row: auto !important; }
 }
 
 /* --- chat attachments ----------------------------------------------------- */
