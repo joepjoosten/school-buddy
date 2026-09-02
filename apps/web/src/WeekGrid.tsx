@@ -82,12 +82,6 @@ const HomeworkCard = ({
     }`}
   >
     <div className="hw-head">
-      <input
-        type="checkbox"
-        checked={item.done}
-        onChange={() => onToggle(item)}
-        title={item.done ? "weer openzetten" : "afvinken"}
-      />
       <span className="subject" title={`${item.subjectName} (${item.subject})`}>
         {item.kind === "reminder" && <span title="meenemen — geen leertijd nodig">🎒 </span>}
         {item.subjectName}
@@ -100,6 +94,13 @@ const HomeworkCard = ({
         >
           {item.source === "somtoday" ? "S" : "✍️"}
         </span>
+        <input
+          type="checkbox"
+          className="tick"
+          checked={item.done}
+          onChange={() => onToggle(item)}
+          title={item.done ? "weer openzetten" : "afvinken"}
+        />
         <button
           type="button"
           className="hw-delete"

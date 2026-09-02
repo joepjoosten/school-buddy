@@ -214,7 +214,19 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   padding: 0.35rem 0.45rem; margin-bottom: 0.35rem; font-size: 0.78rem;
 }
 .homework .hw-head { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
-.homework .hw-head input[type="checkbox"] { margin: 0; flex: none; }
+
+/* The tick is the only target for completing something: it slides in from
+   the right on hover, so the card itself is never a click target. */
+.tick {
+  margin: 0; flex: none; cursor: pointer;
+  opacity: 0; transform: translateX(0.6rem); pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.homework:hover .tick, .plan-item:hover .tick,
+.tick:focus-visible, .tick:checked {
+  opacity: 1; transform: translateX(0); pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) { .tick { transition: none; } }
 .homework .subject {
   font-weight: 700; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
@@ -226,7 +238,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .homework.toets { background: #fee2e2; border-color: #fca5a5; }
 .homework.done { opacity: 0.55; }
 .homework.done .desc { text-decoration: line-through; }
-.hw-actions { margin-left: auto; display: flex; align-items: center; gap: 0.2rem; flex: none; }
+.hw-actions { margin-left: auto; display: flex; align-items: center; gap: 0.25rem; flex: none; }
 .homework .source { font-size: 0.65rem; color: #b45309; opacity: 0.7; }
 .hw-delete {
   border: 0; background: transparent; color: #b45309; padding: 0 0.15rem; font-size: 0.8rem;
@@ -296,7 +308,8 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .plan-item { background: #fdf4ff; border-left: 3px solid #a855f7; border-radius: 8px; padding: 0.35rem 0.45rem; margin-bottom: 0.4rem; font-size: 0.78rem; }
 .plan-item.done { opacity: 0.5; }
 .plan-item.done .plan-title { text-decoration: line-through; }
-.plan-item label { display: flex; gap: 0.35rem; align-items: baseline; cursor: pointer; }
+.plan-item-head { display: flex; gap: 0.35rem; align-items: baseline; }
+.plan-item-head .plan-title { flex: 1; min-width: 0; }
 .plan-item .plan-title { font-weight: 500; }
 .plan-meta { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; color: #6b7280; font-size: 0.7rem; flex-wrap: wrap; }
 .plan-meta .subject { font-weight: 700; text-transform: uppercase; color: #7e22ce; }

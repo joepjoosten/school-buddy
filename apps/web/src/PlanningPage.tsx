@@ -66,12 +66,18 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
       ? <p className="empty">—</p>
       : items.map((p) => (
         <div key={p.id} className={`plan-item${p.done ? " done" : ""}`}>
-          <label>
-            <input type="checkbox" checked={p.done} onChange={() => toggle(p)} />
+          <div className="plan-item-head">
             <span className="plan-title">
               {stripSubjectPrefix(p.title, p.subjectName, p.subject)}
             </span>
-          </label>
+            <input
+              type="checkbox"
+              className="tick"
+              checked={p.done}
+              onChange={() => toggle(p)}
+              title={p.done ? "weer openzetten" : "afvinken"}
+            />
+          </div>
           <div className="plan-meta">
             <span className="subject" title={p.subject}>{p.subjectName}</span>
             <span className="duration">{minutesLabel(p.durationMinutes)}</span>
