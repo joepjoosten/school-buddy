@@ -154,6 +154,13 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
     stopCamera()
   }
 
+  /** name a pasted screenshot after the moment it was taken */
+  const pastedName = (mediaType: string): string => {
+    const ext = mediaType.split("/")[1]?.replace("jpeg", "jpg") ?? "png"
+    const t = new Date().toISOString().slice(11, 19).replace(/:/g, "")
+    return `plakplaatje-${t}.${ext}`
+  }
+
   const addFiles = async (files: FileList | null) => {
     setMenuOpen(false)
     if (files === null) return
@@ -163,6 +170,30 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
     }
     setPending((p) => [...p, ...added])
   }
+
+  // ⌘V anywhere on the chat page attaches an image from the clipboard
+  // (macOS screenshots with ctrl+⌘+shift+4 land there)
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const items = Array.from(event.clipboardData?.items ?? [])
+      const images = items.filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+      if (images.length === 0) return // let a normal text paste through
+      event.preventDefault()
+      for (const item of images) {
+        const file = item.getAsFile()
+        if (file === null) continue
+        void readAsBase64(file).then((data) => {
+          setPending((p) => [...p, {
+            mediaType: file.type,
+            fileName: file.name === "" || file.name === "image.png" ? pastedName(file.type) : file.name,
+            data
+          }])
+        })
+      }
+    }
+    document.addEventListener("paste", onPaste)
+    return () => document.removeEventListener("paste", onPaste)
+  }, [])
 
   // stop the camera when leaving the page
   useEffect(() => () => {
@@ -333,7 +364,7 @@ export const ChatPage = ({ initialQuestion }: { initialQuestion?: string | null 
         </span>
         <input
           autoFocus
-          placeholder="Typ je vraag..."
+          placeholder="Typ je vraag… (of plak een screenshot met ⌘V)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
