@@ -120,6 +120,7 @@ export const LessonPanel = ({
               {h.type === "toets" && <span className="toets-badge">Toets</span>}
               {h.done && <span className="panel-done">✓ afgerond</span>}
             </div>
+            {h.title !== null && <p className="panel-hw-title">{h.title}</p>}
             <p className="panel-hw-desc">{h.description}</p>
             <p className="panel-meta">
               voor {dutchDate(h.dueDate)} · {h.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}

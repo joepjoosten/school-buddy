@@ -114,6 +114,7 @@ const HomeworkCard = ({
         </button>
       </span>
     </div>
+    {item.title !== null && <p className="hw-title">{item.title}</p>}
     <p className="desc">{item.description}</p>
   </div>
 )

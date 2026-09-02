@@ -274,6 +274,11 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   font-weight: 700; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
+.homework .hw-title {
+  margin: 0.25rem 0 0; font-weight: 600; font-size: 0.76rem; color: #7c2d12;
+  overflow-wrap: anywhere;
+}
+.homework .hw-title + .desc { margin-top: 0.1rem; }
 .homework .desc {
   margin: 0.25rem 0 0; width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.35;
 }
@@ -423,6 +428,8 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .panel-hw-head { display: flex; align-items: center; gap: 0.4rem; }
 .panel-hw-head .subject { font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
 .panel-done { margin-left: auto; font-size: 0.72rem; color: #15803d; font-weight: 600; }
+.panel-hw-title { margin: 0.3rem 0 0; font-weight: 600; font-size: 0.85rem; color: #7c2d12; }
+.panel-hw-title + .panel-hw-desc { margin-top: 0.15rem; }
 .panel-hw-desc { margin: 0.3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.88rem; }
 .panel-meta { margin: 0.25rem 0 0; font-size: 0.72rem; color: #78716c; }
 .panel-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }

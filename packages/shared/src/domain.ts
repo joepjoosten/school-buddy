@@ -48,6 +48,8 @@ export const HomeworkItem = Schema.Struct({
   subject: Schema.String,
   /** full course name, e.g. "biologie"; falls back to the code */
   subjectName: Schema.String,
+  /** Somtoday's onderwerp, e.g. "T1 Inleiding in de biologie"; null when absent */
+  title: Schema.NullOr(Schema.String),
   /** YYYY-MM-DD the homework is due */
   dueDate: Schema.String,
   description: Schema.String,

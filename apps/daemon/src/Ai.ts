@@ -253,7 +253,9 @@ const makeAi = Effect.gen(function* () {
             items.length === 0
               ? "Geen openstaand huiswerk."
               : items
-                .map((h) => `${h.dueDate} ${h.subject}: ${h.description} (id ${h.id})`)
+                .map((h) =>
+                `${h.dueDate} ${h.subject}: ${h.title === null ? "" : `${h.title} — `}${h.description} (id ${h.id})`
+              )
                 .join("\n")
           )
         ),
@@ -569,7 +571,9 @@ Geef same=true als het (vrijwel zeker) dezelfde opdracht is, met een confidence 
         schema: Classification,
         prompt: `Beoordeel wat voor soort huiswerk dit is voor een scholier.
 
-Vak: "${homework.subject}", voor ${homework.dueDate}: "${homework.description}"
+Vak: "${homework.subject}", voor ${homework.dueDate}${
+          homework.title === null ? "" : `, onderwerp "${homework.title}"`
+        }: "${homework.description}"
 
 - "task": echt werk waar de leerling tijd voor moet inplannen (opgaven maken, lezen, leren voor een toets, verslag/PO schrijven, presentatie voorbereiden).
 - "reminder": alleen iets meenemen, meebrengen, klaarleggen of inleveren van iets dat al af is (bv. "boek meenemen", "schrift meenemen", "gymkleren", "laptop opladen"). Hier hoeft geen leertijd voor ingepland te worden.
@@ -612,7 +616,9 @@ Let op: een omschrijving met zowel werk als meenemen is "task".`
         objectName: "planning",
         schema: PlanProposal,
         prompt: `Je maakt een leerplanning voor een middelbare scholier (4 vwo).
-Vandaag is ${today}. Huiswerk (soort volgens school: ${homework.type}): vak "${homework.subject}", inleveren/af op ${homework.dueDate}: "${homework.description}".
+Vandaag is ${today}. Huiswerk (soort volgens school: ${homework.type}): vak "${homework.subject}", inleveren/af op ${homework.dueDate}${
+          homework.title === null ? "" : `, onderwerp "${homework.title}"`
+        }: "${homework.description}".
 Voorkeur van de leerling voor gewoon huiswerk: ${
           preference === "day-before" ? "de dag vóór de inleverdatum" : "op de dag dat het opgegeven is (zo snel mogelijk)"
         }.

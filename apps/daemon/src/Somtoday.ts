@@ -218,14 +218,23 @@ const mapVacation = (item: Record<string, unknown>): Vacation | null => {
   return { id, name, startDay: begin.slice(0, 10), endDay: eind.slice(0, 10) }
 }
 
+const onderwerp0 = (studiewijzerItem: Record<string, unknown>): string | null => {
+  const raw = asString(studiewijzerItem["onderwerp"])
+  const text = raw === null ? "" : htmlToText(raw)
+  return text === "" ? null : text
+}
+
 const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
   const id = linkId(item)
   const studiewijzerItem = asObject(item["studiewijzerItem"]) ?? {}
   const dueRaw = asString(item["datumTijd"])
   if (id === "" || dueRaw === null) return null
-  const onderwerp = asString(studiewijzerItem["onderwerp"])
+  // "onderwerp" is the item's title, "omschrijving" the assignment itself;
+  // most items carry both and they are never the same
+  const onderwerp = onderwerp0(studiewijzerItem)
   const omschrijving = htmlToText(asString(studiewijzerItem["omschrijving"]) ?? "")
-  const description = omschrijving !== "" ? omschrijving : onderwerp === null ? null : htmlToText(onderwerp)
+  const description = omschrijving !== "" ? omschrijving : onderwerp
+  const title = omschrijving !== "" ? onderwerp : null
   if (description === null || description === "") return null
   const huiswerkType = asString(studiewijzerItem["huiswerkType"])
   const type: HomeworkType = huiswerkType === "TOETS"
@@ -242,6 +251,7 @@ const mapHomework = (item: Record<string, unknown>): HomeworkItem | null => {
     id: `somtoday-${id}`,
     subject,
     subjectName: asString(vak?.["naam"]) ?? subject,
+    title,
     dueDate: dueRaw.slice(0, 10),
     description,
     source: "somtoday",
