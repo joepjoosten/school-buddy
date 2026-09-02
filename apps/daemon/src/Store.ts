@@ -46,6 +46,9 @@ export interface StoreShape {
   readonly recentChanges: (limit: number) => Effect.Effect<Array<RosterChange>>
   readonly unnotifiedChanges: (untilDateExclusive: string) => Effect.Effect<Array<RosterChange>>
   readonly markChangesNotified: (ids: ReadonlyArray<string>) => Effect.Effect<void>
+  readonly replaceTeachers: (
+    teachers: ReadonlyArray<{ readonly abbrev: string; readonly name: string }>
+  ) => Effect.Effect<void>
   readonly replaceVacations: (vacations: ReadonlyArray<Vacation>) => Effect.Effect<void>
   /** vacations overlapping [fromDay, toDayExclusive) */
   readonly vacationsBetween: (fromDay: string, toDayExclusive: string) => Effect.Effect<Array<Vacation>>
@@ -173,6 +176,10 @@ const migrations = [
   `create table if not exists signals (
     kind text not null,
     at text not null
+  )`,
+  `create table if not exists teachers (
+    abbrev text primary key,
+    name text not null
   )`,
   `create table if not exists vacations (
     id text primary key,
@@ -361,18 +368,32 @@ interface PromptRow {
   readonly created_at: string
 }
 
-const lessonFromRow = (row: LessonRow): Lesson => ({
+const lessonFromRow = (row: LessonRow, teachers?: ReadonlyMap<string, string>): Lesson => ({
   id: row.id,
   subject: row.subject,
   title: row.title,
   location: row.location,
   teacher: row.teacher,
+  teacherName: resolveTeachers(row.teacher, teachers),
   start: row.start,
   end: row.end,
   cancelled: row.cancelled === 1,
   periodStart: row.period_start,
   periodEnd: row.period_end
 })
+
+/** "dij61, grc01" -> "Daan Dijk, Guus Grc" when the directory knows them */
+const resolveTeachers = (
+  abbrevs: string | null,
+  teachers?: ReadonlyMap<string, string>
+): string | null => {
+  if (abbrevs === null || teachers === undefined) return null
+  const names = abbrevs
+    .split(/[,;]/)
+    .map((a) => teachers.get(a.trim().toLowerCase()))
+    .filter((n): n is string => n !== undefined)
+  return names.length === 0 ? null : [...new Set(names)].join(", ")
+}
 
 const homeworkFromRow = (row: HomeworkRow): HomeworkItem => ({
   id: row.id,
@@ -433,7 +454,7 @@ const makeStore = Effect.gen(function* () {
             select * from lessons
             where start >= ${dayStartInstant(fromDate)} and start < ${dayStartInstant(toDateExclusive)}`
           const currentDay = today()
-          const changes = diffLessons(rows.map(lessonFromRow), lessons, {
+          const changes = diffLessons(rows.map((row) => lessonFromRow(row)), lessons, {
             from: currentDay > fromDate ? currentDay : fromDate,
             until: syncedUntil < toDateExclusive ? syncedUntil : toDateExclusive
           })
@@ -478,6 +499,14 @@ const makeStore = Effect.gen(function* () {
         }
       }).pipe(Effect.orDie),
 
+    replaceTeachers: (teachers) =>
+      Effect.gen(function* () {
+        for (const t of teachers) {
+          yield* sql`insert into teachers (abbrev, name) values (${t.abbrev.toLowerCase()}, ${t.name})
+            on conflict(abbrev) do update set name = excluded.name`
+        }
+      }).pipe(Effect.orDie),
+
     replaceVacations: (vacations) =>
       Effect.gen(function* () {
         yield* sql`delete from vacations`
@@ -510,12 +539,15 @@ const makeStore = Effect.gen(function* () {
           select * from homework
           where due_date >= ${bounds.monday} and due_date < ${bounds.nextMonday} and deleted = 0
           order by due_date asc, subject asc`
+        const teacherRows = yield* sql<{ readonly abbrev: string; readonly name: string }>`
+          select abbrev, name from teachers`
+        const teachers = new Map(teacherRows.map((t) => [t.abbrev, t.name] as const))
         const vacations = yield* store.vacationsBetween(bounds.monday, bounds.nextMonday)
         return {
           year: bounds.year,
           week: bounds.week,
           monday: bounds.monday,
-          lessons: lessonRows.map(lessonFromRow),
+          lessons: lessonRows.map((row) => lessonFromRow(row, teachers)),
           homework: homeworkRows.map(homeworkFromRow),
           vacations
         } satisfies WeekData
@@ -526,7 +558,7 @@ const makeStore = Effect.gen(function* () {
         select * from lessons
         where end > ${fromIso} and end <= ${toIso} and cancelled = 0
         order by end asc`.pipe(
-        Effect.map((rows) => rows.map(lessonFromRow)),
+        Effect.map((rows) => rows.map((row) => lessonFromRow(row))),
         Effect.orDie
       ),
 

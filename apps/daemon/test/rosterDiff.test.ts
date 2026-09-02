@@ -10,6 +10,7 @@ const lesson = (over: Partial<Lesson> & { id: string }): Lesson => ({
   title: "wiskunde B",
   location: "t39",
   teacher: "HER61",
+  teacherName: null,
   start: "2026-09-07T11:15:00.000Z", // 13:15 local
   end: "2026-09-07T12:05:00.000Z",
   cancelled: false,

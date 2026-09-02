@@ -97,8 +97,16 @@ export const LessonPanel = ({
           {lesson.location !== null && lesson.location !== "" && (
             <div><dt>lokaal</dt><dd>{lesson.location}</dd></div>
           )}
-          {lesson.teacher !== null && lesson.teacher !== "" && (
-            <div><dt>docent</dt><dd>{lesson.teacher}</dd></div>
+          {(lesson.teacherName !== null || (lesson.teacher !== null && lesson.teacher !== "")) && (
+            <div>
+              <dt>docent</dt>
+              <dd>
+                {lesson.teacherName ?? lesson.teacher}
+                {lesson.teacherName !== null && lesson.teacher !== null && (
+                  <span className="panel-abbrev"> ({lesson.teacher})</span>
+                )}
+              </dd>
+            </div>
           )}
           {lesson.cancelled && <div><dt>status</dt><dd>vervallen</dd></div>}
         </dl>

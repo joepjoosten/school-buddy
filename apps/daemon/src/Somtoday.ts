@@ -172,6 +172,7 @@ const mapAfspraak = (item: Record<string, unknown>): Lesson | null => {
     title: asString(vak?.["naam"]) ?? middle,
     location: asString(item["locatie"]),
     teacher: parts.length >= 3 ? (parts[parts.length - 1] ?? null) : null,
+    teacherName: null,
     start,
     end,
     cancelled: false,
@@ -360,6 +361,27 @@ const makeSomtoday = Effect.gen(function* () {
       return all
     })
 
+  /**
+   * Teacher directory. The roster only carries abbreviations ("BES61"), but
+   * every study guide names its owner, which includes that abbreviation.
+   */
+  const fetchTeachers = (
+    auth: { accessToken: string; apiUrl: string }
+  ): Effect.Effect<Array<{ abbrev: string; name: string }>, SomtodayError> =>
+    Effect.gen(function* () {
+      const items = yield* apiGetAll(auth, "studiewijzers", {})
+      const teachers = new Map<string, string>()
+      for (const item of items) {
+        const owner = asObject(item["eigenaar"])
+        const abbrev = asString(owner?.["afkorting"])
+        const first = asString(owner?.["roepnaam"])
+        const last = asString(owner?.["achternaam"])
+        if (abbrev === null || last === null) continue
+        teachers.set(abbrev.toLowerCase(), first === null ? last : `${first} ${last}`)
+      }
+      return [...teachers].map(([abbrev, name]) => ({ abbrev, name }))
+    })
+
   const fetchVacations = (
     auth: { accessToken: string; apiUrl: string }
   ): Effect.Effect<Array<Vacation>, SomtodayError> =>
@@ -400,6 +422,14 @@ const makeSomtoday = Effect.gen(function* () {
       .map(mapHomework)
       .filter((h): h is HomeworkItem => h !== null)
     yield* store.upsertSomtodayHomework(items)
+
+    // teacher names, so the roster can show more than an abbreviation
+    const teachers = yield* fetchTeachers(auth).pipe(
+      Effect.catchTag("SomtodayError", (error) =>
+        Effect.logWarning(`teacher sync failed: ${error.detail}`).pipe(Effect.map(() => null))
+      )
+    )
+    if (teachers !== null) yield* store.replaceTeachers(teachers)
 
     // vacations and free days, keyed on the student id
     const vacations = yield* fetchVacations(auth).pipe(

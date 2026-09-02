@@ -9,7 +9,10 @@ export const Lesson = Schema.Struct({
   /** display title, e.g. "Nederlands" */
   title: Schema.String,
   location: Schema.NullOr(Schema.String),
+  /** abbreviation(s) as they appear in the roster, e.g. "BES61" */
   teacher: Schema.NullOr(Schema.String),
+  /** resolved full name(s), when the teacher is known */
+  teacherName: Schema.NullOr(Schema.String),
   /** UTC instant (…Z); render with localTime/localDay */
   start: Schema.String,
   /** UTC instant (…Z) */

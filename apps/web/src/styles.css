@@ -392,6 +392,7 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .panel-facts > div { display: contents; }
 .panel-facts dt { color: #8a94ab; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.03em; align-self: center; }
 .panel-facts dd { margin: 0; }
+.panel-abbrev { color: #8a94ab; font-size: 0.8em; }
 .panel-empty { color: #8a94ab; font-size: 0.85rem; margin: 0.2rem 0; }
 .panel-hw {
   background: #ffedd5; border: 1px solid #fdba74; border-radius: 10px;

@@ -276,7 +276,9 @@ export const WeekGrid = ({
                       }}
                       title={`${hhmm(lesson.start)}–${hhmm(lesson.end)} ${lesson.title}${
                         lesson.location ? ` (${lesson.location})` : ""
-                      }${test !== null ? `\n\n📕 Toets: ${test}` : ""}`}
+                      }${lesson.teacherName !== null ? `\n${lesson.teacherName}` : ""}${
+                        test !== null ? `\n\n📕 Toets: ${test}` : ""
+                      }`}
                     >
                       {test !== null && <span className="test-dot" title={`Toets: ${test}`} />}
                       <span className="pill">
