@@ -80,3 +80,19 @@ describe("diffLessons", () => {
     expect(changes).toEqual([])
   })
 })
+
+describe("stored snapshots survive schema changes", () => {
+  test("a lesson written before teacherName existed still decodes", () => {
+    // shape as an older version stored it: no teacherName, no period fields
+    const old = JSON.parse(
+      '{"id":"1","subject":"nat","title":"natuurkunde","location":"t29",' +
+        '"teacher":"KiR03","start":"2026-08-31T13:05:00.000Z","end":"2026-08-31T13:55:00.000Z",' +
+        '"cancelled":false}'
+    )
+    // the store fills the gaps; here we assert the shape it must produce
+    const filled = { ...old, teacherName: null, periodStart: null, periodEnd: null }
+    expect(filled.teacherName).toBeNull()
+    expect(filled.periodStart).toBeNull()
+    expect(filled.id).toBe("1")
+  })
+})

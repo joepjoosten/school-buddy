@@ -327,6 +327,34 @@ interface RosterChangeRow {
   readonly notified: number
 }
 
+/**
+ * Snapshots are stored as JSON at the time of the change, so ones written by
+ * an older version can miss fields the Lesson schema has since gained. They
+ * are filled in here, otherwise encoding the response would fail.
+ */
+const lessonFromJson = (json: string | null): Lesson | null => {
+  if (json === null) return null
+  try {
+    const raw = JSON.parse(json) as Partial<Lesson>
+    if (typeof raw.id !== "string" || typeof raw.start !== "string") return null
+    return {
+      id: raw.id,
+      subject: raw.subject ?? "",
+      title: raw.title ?? "",
+      location: raw.location ?? null,
+      teacher: raw.teacher ?? null,
+      teacherName: raw.teacherName ?? null,
+      start: raw.start,
+      end: raw.end ?? raw.start,
+      cancelled: raw.cancelled ?? false,
+      periodStart: raw.periodStart ?? null,
+      periodEnd: raw.periodEnd ?? null
+    }
+  } catch {
+    return null
+  }
+}
+
 const rosterChangeFromRow = (row: RosterChangeRow): RosterChange => ({
   id: row.id,
   detectedAt: row.detected_at,
@@ -335,8 +363,8 @@ const rosterChangeFromRow = (row: RosterChangeRow): RosterChange => ({
   subject: row.subject,
   lessonId: row.lesson_id,
   summary: row.summary,
-  before: row.before_json === null ? null : (JSON.parse(row.before_json) as Lesson),
-  after: row.after_json === null ? null : (JSON.parse(row.after_json) as Lesson),
+  before: lessonFromJson(row.before_json),
+  after: lessonFromJson(row.after_json),
   notified: row.notified === 1
 })
 
