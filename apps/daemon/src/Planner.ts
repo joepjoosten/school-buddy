@@ -31,13 +31,13 @@ const defaultPlan = (
     return picks.map((day, i) => ({
       day,
       durationMinutes: 20,
-      title: `${homework.subject}: leren voor toets (${i + 1}/${picks.length})`
+      title: `leren voor toets (${i + 1}/${picks.length})`
     }))
   }
   return [{
     day: preference === "day-before" ? last : first,
     durationMinutes: 30,
-    title: `${homework.subject}: ${homework.description.slice(0, 60)}`
+    title: homework.description.slice(0, 60)
   }]
 }
 

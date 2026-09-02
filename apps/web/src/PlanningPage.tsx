@@ -2,7 +2,7 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react"
 import type { PlanItem } from "@school-buddy/shared"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { movePlanItem, replanHomework, runEffect, setPlanItemDone } from "./api.ts"
-import { today as localToday } from "@school-buddy/shared"
+import { stripSubjectPrefix, today as localToday } from "@school-buddy/shared"
 import { planningAtom } from "./atoms.ts"
 import { useFreshData } from "./useFreshData.ts"
 import { addDays } from "./WeekGrid.tsx"
@@ -68,10 +68,12 @@ export const PlanningPage = ({ anchor }: { anchor: string }) => {
         <div key={p.id} className={`plan-item${p.done ? " done" : ""}`}>
           <label>
             <input type="checkbox" checked={p.done} onChange={() => toggle(p)} />
-            <span className="plan-title">{p.title}</span>
+            <span className="plan-title">
+              {stripSubjectPrefix(p.title, p.subjectName, p.subject)}
+            </span>
           </label>
           <div className="plan-meta">
-            <span className="subject">{p.subject}</span>
+            <span className="subject" title={p.subject}>{p.subjectName}</span>
             <span className="duration">{minutesLabel(p.durationMinutes)}</span>
             <a
               className="due"

@@ -188,6 +188,7 @@ export const PlanItem = Schema.Struct({
   homeworkId: Schema.String,
   /** copied from the homework for display */
   subject: Schema.String,
+  subjectName: Schema.String,
   homeworkDescription: Schema.String,
   dueDate: Schema.String,
   /** YYYY-MM-DD; no specific time */

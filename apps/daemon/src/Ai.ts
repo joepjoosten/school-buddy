@@ -626,7 +626,8 @@ Regels:
 - Grote opdrachten (PO, werkstuk, presentatie): meerdere sessies van 30–60 min.
 - Spreid werk over dagen met minder lessen en minder geplande minuten.
 - Nooit op of na de inleverdatum plannen.
-- Titel: kort en concreet, bv. "Frans woordjes H2 leren (1/3)".
+- Titel: kort en concreet, en ZONDER het vak erin — de app toont het vak er al naast.
+  Dus "Woordjes H2 leren (1/3)", niet "Frans woordjes H2 leren (1/3)".
 Als je echt niet kunt inschatten wat er nodig is (bv. onduidelijk hoe groot het is), vul dan alleen "question" in met één korte vraag aan de leerling en laat items leeg.`
       })
       const result = yield* run.pipe(

@@ -273,6 +273,7 @@ interface PlanItemRow {
   readonly id: string
   readonly homework_id: string
   readonly subject: string
+  readonly subject_name: string | null
   readonly description: string
   readonly due_date: string
   readonly day: string
@@ -280,15 +281,13 @@ interface PlanItemRow {
   readonly title: string
   readonly done: number
   readonly created_at: string
-  readonly kind: string | null
-  readonly hw_type: string | null
-  readonly subject_name: string | null
 }
 
 const planItemFromRow = (row: PlanItemRow): PlanItem => ({
   id: row.id,
   homeworkId: row.homework_id,
   subject: row.subject,
+  subjectName: row.subject_name ?? row.subject,
   homeworkDescription: row.description,
   dueDate: row.due_date,
   day: row.day,
@@ -781,7 +780,7 @@ const makeStore = Effect.gen(function* () {
 
     planItemsBetween: (fromDate, toDateExclusive) =>
       sql<PlanItemRow>`
-        select p.id, p.homework_id, h.subject, h.description, h.due_date, p.day,
+        select p.id, p.homework_id, h.subject, h.subject_name, h.description, h.due_date, p.day,
                p.duration_minutes, p.title, p.done, p.created_at
         from plan_items p join homework h on h.id = p.homework_id
         where p.day >= ${fromDate} and p.day < ${toDateExclusive} and h.deleted = 0
@@ -792,7 +791,7 @@ const makeStore = Effect.gen(function* () {
 
     planItemsForHomework: (homeworkId) =>
       sql<PlanItemRow>`
-        select p.id, p.homework_id, h.subject, h.description, h.due_date, p.day,
+        select p.id, p.homework_id, h.subject, h.subject_name, h.description, h.due_date, p.day,
                p.duration_minutes, p.title, p.done, p.created_at
         from plan_items p join homework h on h.id = p.homework_id
         where p.homework_id = ${homeworkId}
