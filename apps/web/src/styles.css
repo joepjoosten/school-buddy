@@ -41,7 +41,12 @@ button:hover { background: #eef2ff; }
 .version { color: #a5aec3; font-size: 0.75rem; margin-left: auto; }
 .pages { display: flex; gap: 0.7rem; position: relative; }
 .page-links { display: flex; gap: 0.7rem; }
-.hamburger { display: none; font-size: 1rem; line-height: 1; padding: 0.3rem 0.6rem; }
+.hamburger {
+  display: none; /* becomes inline-flex below the breakpoint */
+  align-items: center; justify-content: center;
+  width: 2.1rem; height: 2.1rem; padding: 0;
+  font-size: 0.95rem; line-height: 1;
+}
 
 /* Not enough room for the full nav: collapse it into a hamburger menu. */
 @media (max-width: 1000px) {
