@@ -29,8 +29,16 @@ const useHashRoute = (): { route: string; params: URLSearchParams } => {
   }
 }
 
+const PAGES = [
+  { hash: "#", route: "", label: "📅 rooster" },
+  { hash: "#planning", route: "#planning", label: "🗓️ planning" },
+  { hash: "#chat", route: "#chat", label: "💬 chat" },
+  { hash: "#instellingen", route: "#instellingen", label: "⚙️ instellingen" }
+]
+
 export const App = () => {
   const { route, params } = useHashRoute()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [anchor, setAnchor] = useState<string>(localToday())
 
   // "#rooster?date=YYYY-MM-DD" (from a planning item) opens that week
@@ -54,6 +62,24 @@ export const App = () => {
   const periods = parseLestijden(
     AsyncResult.isSuccess(settingsResult) ? settingsResult.value.lestijden : defaultSettings.lestijden
   )
+
+  // close the menu on Escape or when the route changes
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [route])
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false)
+    }
+    const onClick = () => setMenuOpen(false)
+    document.addEventListener("keydown", onKey)
+    document.addEventListener("click", onClick)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.removeEventListener("click", onClick)
+    }
+  }, [menuOpen])
 
   // the buddy can add homework from the chat, so refetch when the rooster
   // is shown again instead of serving the cached week
@@ -98,16 +124,31 @@ export const App = () => {
           <span className="warn">⬆️ Update beschikbaar ({health.latestVersion})</span>
         )}
         {health && <span className="version">{health.version}</span>}
-        <span className="pages">
-          <a className={`page-link${route === "" ? " active" : ""}`} href="#">📅 rooster</a>
-          <a className={`page-link${route === "#planning" ? " active" : ""}`} href="#planning">🗓️ planning</a>
-          <a className={`page-link${route === "#chat" ? " active" : ""}`} href="#chat">💬 chat</a>
-          <a
-            className={`page-link${route === "#instellingen" ? " active" : ""}`}
-            href="#instellingen"
+        <span className={`pages${menuOpen ? " open" : ""}`}>
+          <button
+            type="button"
+            className="hamburger"
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((o) => !o)
+            }}
           >
-            ⚙️ instellingen
-          </a>
+            ☰
+          </button>
+          <span className="page-links">
+            {PAGES.map((page) => (
+              <a
+                key={page.hash}
+                className={`page-link${route === page.route ? " active" : ""}`}
+                href={page.hash}
+                onClick={() => setMenuOpen(false)}
+              >
+                {page.label}
+              </a>
+            ))}
+          </span>
         </span>
       </header>
       {error !== null && <p className="error">Kan de daemon niet bereiken: {error}</p>}

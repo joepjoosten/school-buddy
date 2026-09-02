@@ -39,7 +39,23 @@ button:hover { background: #eef2ff; }
 .weeklabel { font-weight: 600; color: #4a5670; }
 .warn { color: #b45309; font-weight: 600; }
 .version { color: #a5aec3; font-size: 0.75rem; margin-left: auto; }
-.pages { display: flex; gap: 0.7rem; }
+.pages { display: flex; gap: 0.7rem; position: relative; }
+.page-links { display: flex; gap: 0.7rem; }
+.hamburger { display: none; font-size: 1rem; line-height: 1; padding: 0.3rem 0.6rem; }
+
+/* Not enough room for the full nav: collapse it into a hamburger menu. */
+@media (max-width: 1000px) {
+  header h1 { font-size: 1.15rem; }
+  .hamburger { display: inline-flex; }
+  .pages .page-links {
+    display: none; position: absolute; top: 115%; right: 0; z-index: 30;
+    flex-direction: column; gap: 0.15rem; min-width: 11rem;
+    background: #fff; border: 1px solid #c6cede; border-radius: 10px; padding: 0.3rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+  }
+  .pages.open .page-links { display: flex; }
+  .pages .page-link { padding: 0.4rem 0.6rem; }
+}
 .page-link { color: #4a5670; text-decoration: none; font-size: 0.9rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
 .page-link:hover { background: #e8edf7; }
 .page-link.active { background: #eef2ff; font-weight: 600; }
