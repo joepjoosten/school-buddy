@@ -7,18 +7,27 @@ body {
 }
 .app { max-width: 1200px; margin: 0 auto; padding: 1rem; }
 
-/* One focus ring for every interactive element, only for keyboard users.
-   :focus-visible keeps it off mouse clicks while staying visible for tabbing. */
-:focus-visible {
+/* One ring for every interactive element, on hover as well as keyboard focus.
+   Hover is listed per element type so plain text and non-clickable cards
+   never get a ring that suggests they can be clicked. */
+:focus-visible,
+button:hover,
+a:hover,
+select:hover,
+textarea:hover,
+input:hover,
+.cal-lesson:hover {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
   border-radius: 4px;
 }
 /* inside clipped containers an offset ring would be cut off */
-.cal-lesson:focus-visible, .plan-item:focus-visible, .homework:focus-visible {
+.cal-lesson:focus-visible, .cal-lesson:hover,
+.plan-item:focus-visible, .homework:focus-visible {
   outline-offset: -2px;
 }
-input[type="checkbox"]:focus-visible { outline-offset: 1px; }
+input[type="checkbox"]:focus-visible, input[type="checkbox"]:hover { outline-offset: 1px; }
+
 header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 header h1 { font-size: 1.4rem; margin: 0.5rem 0; }
 header nav { display: flex; gap: 0.4rem; }
@@ -26,7 +35,7 @@ button {
   border: 1px solid #c6cede; background: #fff; border-radius: 8px;
   padding: 0.35rem 0.8rem; cursor: pointer; font-size: 0.9rem;
 }
-button:hover { background: #e8edf7; }
+button:hover { background: #eef2ff; }
 .weeklabel { font-weight: 600; color: #4a5670; }
 .warn { color: #b45309; font-weight: 600; }
 .version { color: #a5aec3; font-size: 0.75rem; margin-left: auto; }
@@ -404,5 +413,4 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .panel-plan .plan-day { font-weight: 600; color: #7e22ce; white-space: nowrap; }
 .panel-plan .duration { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 0 0.4rem; font-weight: 600; font-size: 0.7rem; white-space: nowrap; }
 .cal-lesson { cursor: pointer; }
-.cal-lesson:hover { filter: brightness(0.97); }
 .cal-lesson:focus-visible { outline-offset: -2px; }
