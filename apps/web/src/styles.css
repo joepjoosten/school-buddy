@@ -444,12 +444,13 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .panel-hw-desc { margin: 0.3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.88rem; }
 .panel-meta { margin: 0.25rem 0 0; font-size: 0.72rem; color: #78716c; }
 .panel-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
-/* three aligned columns: when, how long, what */
+/* two columns: when (day above duration), and what to do */
 .panel-plan li {
-  display: grid; grid-template-columns: 5.6rem 3.6rem minmax(0, 1fr);
-  gap: 0.5rem; align-items: baseline; background: #fdf4ff;
-  border-left: 3px solid #a855f7; border-radius: 6px; padding: 0.3rem 0.45rem; font-size: 0.78rem;
+  display: grid; grid-template-columns: 5.6rem minmax(0, 1fr);
+  gap: 0.1rem 0.6rem; align-items: start; background: #fdf4ff;
+  border-left: 3px solid #a855f7; border-radius: 6px; padding: 0.35rem 0.45rem; font-size: 0.78rem;
 }
+.panel-plan-when { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
 .panel-plan li.done { opacity: 0.55; }
 .panel-plan li.done .panel-plan-title { text-decoration: line-through; }
 .panel-plan-day { font-weight: 600; color: #7e22ce; white-space: nowrap; }

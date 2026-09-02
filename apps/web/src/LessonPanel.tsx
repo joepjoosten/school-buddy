@@ -147,10 +147,10 @@ export const LessonPanel = ({
                 <ul className="panel-plan">
                   {(plans[h.id] ?? []).map((p) => (
                     <li key={p.id} className={p.done ? "done" : ""}>
-                      <span className="panel-plan-day" title={dutchDate(p.day)}>
-                        {shortDate(p.day)}
+                      <span className="panel-plan-when" title={dutchDate(p.day)}>
+                        <span className="panel-plan-day">{shortDate(p.day)}</span>
+                        <span className="duration">{minutesLabel(p.durationMinutes)}</span>
                       </span>
-                      <span className="duration">{minutesLabel(p.durationMinutes)}</span>
                       <span className="panel-plan-title">
                         {stripSubjectPrefix(p.title, p.subjectName, p.subject)}
                       </span>
