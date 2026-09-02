@@ -10,6 +10,14 @@ const dutchDate = (day: string): string =>
     month: "long"
   })
 
+/** compact form for the planning columns, e.g. "di 1 sep" */
+const shortDate = (day: string): string =>
+  new Date(`${day}T12:00:00`).toLocaleDateString("nl-NL", {
+    weekday: "short",
+    day: "numeric",
+    month: "short"
+  })
+
 const minutesLabel = (m: number): string =>
   m >= 60 ? `${Math.floor(m / 60)}u${m % 60 === 0 ? "" : ` ${m % 60}m`}` : `${m} min`
 
@@ -139,9 +147,11 @@ export const LessonPanel = ({
                 <ul className="panel-plan">
                   {(plans[h.id] ?? []).map((p) => (
                     <li key={p.id} className={p.done ? "done" : ""}>
-                      <span className="plan-day">{dutchDate(p.day)}</span>
+                      <span className="panel-plan-day" title={dutchDate(p.day)}>
+                        {shortDate(p.day)}
+                      </span>
                       <span className="duration">{minutesLabel(p.durationMinutes)}</span>
-                      <span className="plan-title">
+                      <span className="panel-plan-title">
                         {stripSubjectPrefix(p.title, p.subjectName, p.subject)}
                       </span>
                     </li>
