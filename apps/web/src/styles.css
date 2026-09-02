@@ -222,8 +222,8 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   opacity: 0; transform: translateX(0.6rem); pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.homework:hover .tick, .plan-item:hover .tick,
-.tick:focus-visible, .tick:checked {
+/* also hidden when checked: the strikethrough already shows it is done */
+.homework:hover .tick, .plan-item:hover .tick, .tick:focus-visible {
   opacity: 1; transform: translateX(0); pointer-events: auto;
 }
 @media (prefers-reduced-motion: reduce) { .tick { transition: none; } }
