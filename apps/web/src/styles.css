@@ -344,3 +344,52 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .camera { background: #111827; border-radius: 12px; padding: 0.5rem; margin-top: 0.5rem; }
 .camera video { width: 100%; max-height: 320px; border-radius: 8px; display: block; background: #000; }
 .camera .row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; }
+
+/* --- lesson detail panel -------------------------------------------------- */
+.panel-backdrop {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.25); z-index: 40;
+  animation: fade-in 0.15s ease;
+}
+.lesson-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 92vw); z-index: 41;
+  background: #fff; border-left: 1px solid #d5dbe8; box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
+  padding: 1rem 1.1rem; overflow-y: auto; animation: slide-in 0.2s ease;
+}
+@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .lesson-panel, .panel-backdrop { animation: none; }
+}
+.lesson-panel header { display: flex; align-items: flex-start; gap: 0.5rem; }
+.lesson-panel h2 { margin: 0; font-size: 1.05rem; }
+.lesson-panel h3 { margin: 1rem 0 0.4rem; font-size: 0.85rem; text-transform: uppercase; color: #8a94ab; letter-spacing: 0.04em; }
+.lesson-panel h4 { margin: 0.6rem 0 0.25rem; font-size: 0.72rem; text-transform: uppercase; color: #8a94ab; letter-spacing: 0.04em; }
+.panel-sub { margin: 0.15rem 0 0; color: #4a5670; font-size: 0.85rem; }
+.panel-close { margin-left: auto; border: 0; background: transparent; font-size: 1rem; cursor: pointer; padding: 0.1rem 0.3rem; }
+.panel-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 0.8rem; margin: 0.8rem 0 0; font-size: 0.85rem; }
+.panel-facts > div { display: contents; }
+.panel-facts dt { color: #8a94ab; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.03em; align-self: center; }
+.panel-facts dd { margin: 0; }
+.panel-empty { color: #8a94ab; font-size: 0.85rem; margin: 0.2rem 0; }
+.panel-hw {
+  background: #ffedd5; border: 1px solid #fdba74; border-radius: 10px;
+  padding: 0.5rem 0.6rem; margin-bottom: 0.6rem;
+}
+.panel-hw.toets { background: #fee2e2; border-color: #fca5a5; }
+.panel-hw-head { display: flex; align-items: center; gap: 0.4rem; }
+.panel-hw-head .subject { font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
+.panel-done { margin-left: auto; font-size: 0.72rem; color: #15803d; font-weight: 600; }
+.panel-hw-desc { margin: 0.3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.88rem; }
+.panel-meta { margin: 0.25rem 0 0; font-size: 0.72rem; color: #78716c; }
+.panel-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.panel-plan li {
+  display: flex; gap: 0.4rem; align-items: baseline; background: #fdf4ff;
+  border-left: 3px solid #a855f7; border-radius: 6px; padding: 0.25rem 0.4rem; font-size: 0.78rem;
+}
+.panel-plan li.done { opacity: 0.55; }
+.panel-plan li.done .plan-title { text-decoration: line-through; }
+.panel-plan .plan-day { font-weight: 600; color: #7e22ce; white-space: nowrap; }
+.panel-plan .duration { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 0 0.4rem; font-weight: 600; font-size: 0.7rem; white-space: nowrap; }
+.cal-lesson { cursor: pointer; }
+.cal-lesson:hover { filter: brightness(0.97); }
+.cal-lesson:focus-visible { outline: 2px solid #4f46e5; outline-offset: 1px; }

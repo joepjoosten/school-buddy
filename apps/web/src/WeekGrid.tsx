@@ -1,6 +1,7 @@
 import type { HomeworkItem, Lesson, Period, WeekData } from "@school-buddy/shared"
 import { localDay, localMinutes, localTime, today as localToday } from "@school-buddy/shared"
 import { useEffect, useState } from "react"
+import { LessonPanel } from "./LessonPanel.tsx"
 
 export const DAY_NAMES = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"]
 
@@ -141,6 +142,7 @@ export const WeekGrid = ({
 }) => {
   const now = useNow()
   const today = localToday()
+  const [selected, setSelected] = useState<Lesson | null>(null)
   const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
   const vacationOn = (day: string): string | null =>
     week.vacations.find((v) => day >= v.startDay && day <= v.endDay)?.name ?? null
@@ -165,8 +167,23 @@ export const WeekGrid = ({
     nowMinutes >= startHour * 60 &&
     nowMinutes <= endHour * 60
 
+  /** homework shown with a lesson: linked to it, or same subject and day */
+  const homeworkFor = (lesson: Lesson): Array<HomeworkItem> =>
+    week.homework.filter((h) =>
+      h.lessonId === lesson.id ||
+      (h.subject === lesson.subject && h.dueDate === localDay(lesson.start))
+    )
+
   return (
     <>
+      {selected !== null && (
+        <LessonPanel
+          lesson={selected}
+          homework={homeworkFor(selected)}
+          periods={periods}
+          onClose={() => setSelected(null)}
+        />
+      )}
       <div className="cal">
         <div className="cal-head">
           <div className="cal-gutter-head" />
@@ -242,6 +259,15 @@ export const WeekGrid = ({
                       className={`cal-lesson${lesson.cancelled ? " cancelled" : ""}${
                         height < 40 ? " compact" : ""
                       }${test !== null ? " test" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelected(lesson)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setSelected(lesson)
+                        }
+                      }}
                       style={{
                         top,
                         height,

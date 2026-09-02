@@ -8,6 +8,7 @@ import {
   Health,
   HomeworkItem,
   LogsResponse,
+  PlanItem,
   PlanningWeek,
   RosterChange,
   School,
@@ -93,6 +94,9 @@ export const fetchLogs = (minutes: number) =>
 
 export const fetchPlanning = (date: string) =>
   request(PlanningWeek, `/api/planning?date=${date}`)
+
+export const fetchPlanForHomework = (homeworkId: string) =>
+  request(Schema.Array(PlanItem), `/api/planning/homework?homeworkId=${encodeURIComponent(homeworkId)}`)
 
 export const setPlanItemDone = (id: string, done: boolean) =>
   request(Schema.Boolean, "/api/planning/done", post({ id, done }))

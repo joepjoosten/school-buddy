@@ -10,6 +10,7 @@ import {
   LogsResponse,
   HomeworkInput,
   HomeworkItem,
+  PlanItem,
   PlanningWeek,
   Prompt,
   PromptAnswer,
@@ -62,6 +63,10 @@ const planning = HttpApiGroup.make("planning").add(
   HttpApiEndpoint.post("move", "/api/planning/move", {
     payload: Schema.Struct({ id: Schema.String, day: Schema.String }),
     success: Schema.Boolean
+  }),
+  HttpApiEndpoint.get("forHomework", "/api/planning/homework", {
+    query: { homeworkId: Schema.String },
+    success: Schema.Array(PlanItem)
   }),
   HttpApiEndpoint.post("replan", "/api/planning/replan", {
     payload: Schema.Struct({ homeworkId: Schema.String }),

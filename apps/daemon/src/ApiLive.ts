@@ -55,6 +55,8 @@ const PlanningLive = HttpApiBuilder.group(Api, "planning", (handlers) =>
         const items = yield* store.planItemsBetween(bounds.monday, bounds.nextMonday)
         return { monday: bounds.monday, items }
       }))
+    .handle("forHomework", ({ query }) =>
+      Store.pipe(Effect.flatMap((store) => store.planItemsForHomework(query.homeworkId))))
     .handle("setDone", ({ payload }) =>
       Store.pipe(Effect.flatMap((store) => store.setPlanItemDone(payload.id, payload.done))))
     .handle("move", ({ payload }) =>
