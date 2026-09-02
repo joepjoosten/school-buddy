@@ -202,7 +202,14 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px;
   border-radius: 50%; background: #ea580c; box-shadow: 0 0 0 2px #ffedd5;
 }
-.cal-lesson.compact .test-dot { bottom: 50%; transform: translateY(50%); }
+.cal-lesson.compact .test-dot, .cal-lesson.compact .homework-dot {
+  bottom: 50%; transform: translateY(50%);
+}
+/* homework due at this lesson, in the same indigo as the focus ring */
+.homework-dot {
+  position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px;
+  border-radius: 50%; background: #4f46e5; box-shadow: 0 0 0 2px #c7d2fe;
+}
 .toets-badge {
   background: #ea580c; color: #fff; border-radius: 999px; padding: 0 0.4rem;
   font-size: 0.62rem; font-weight: 700; text-transform: uppercase;

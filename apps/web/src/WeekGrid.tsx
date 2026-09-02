@@ -147,11 +147,23 @@ export const WeekGrid = ({
   const days = DAY_NAMES.map((name, i) => ({ name, date: addDays(week.monday, i) }))
   const vacationOn = (day: string): string | null =>
     week.vacations.find((v) => day >= v.startDay && day <= v.endDay)?.name ?? null
+  /** homework that belongs to a lesson: linked to it, or same subject and day */
+  const homeworkFor = (lesson: Lesson): Array<HomeworkItem> =>
+    week.homework.filter((h) =>
+      h.lessonId === lesson.id ||
+      (h.subject === lesson.subject && h.dueDate === localDay(lesson.start))
+    )
+
   /** a lesson is a test moment when a "toets" item is due that day for that subject */
   const testFor = (lesson: Lesson): string | null =>
-    week.homework.find((h) =>
-      h.type === "toets" && h.dueDate === localDay(lesson.start) && h.subject === lesson.subject
-    )?.description ?? null
+    homeworkFor(lesson).find((h) => h.type === "toets")?.description ?? null
+
+  /** real work due at this lesson — lesson material and tests are not counted */
+  const homeworkDotFor = (lesson: Lesson): string | null => {
+    const items = homeworkFor(lesson).filter((h) => h.kind !== "info" && h.type !== "toets")
+    if (items.length === 0) return null
+    return items.map((h) => h.title ?? h.description).join("\n")
+  }
 
   const hhmmMinutes = (t: string): number => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
   const starts = [...week.lessons.map((l) => minutesOf(l.start)), ...periods.map((p) => hhmmMinutes(p.start))]
@@ -167,13 +179,6 @@ export const WeekGrid = ({
   const showNow = todayIndex !== -1 &&
     nowMinutes >= startHour * 60 &&
     nowMinutes <= endHour * 60
-
-  /** homework shown with a lesson: linked to it, or same subject and day */
-  const homeworkFor = (lesson: Lesson): Array<HomeworkItem> =>
-    week.homework.filter((h) =>
-      h.lessonId === lesson.id ||
-      (h.subject === lesson.subject && h.dueDate === localDay(lesson.start))
-    )
 
   return (
     <>
@@ -254,6 +259,7 @@ export const WeekGrid = ({
                     yOf(minutesOf(lesson.end)) - top - 2
                   )
                   const test = testFor(lesson)
+                  const homework = homeworkDotFor(lesson)
                   return (
                     <div
                       key={lesson.id}
@@ -279,9 +285,12 @@ export const WeekGrid = ({
                         lesson.location ? ` (${lesson.location})` : ""
                       }${lesson.teacherName !== null ? `\n${lesson.teacherName}` : ""}${
                         test !== null ? `\n\n📕 Toets: ${test}` : ""
-                      }`}
+                      }${homework !== null ? `\n\n📘 Huiswerk: ${homework}` : ""}`}
                     >
                       {test !== null && <span className="test-dot" title={`Toets: ${test}`} />}
+                      {test === null && homework !== null && (
+                        <span className="homework-dot" title={`Huiswerk: ${homework}`} />
+                      )}
                       <span className="pill">
                         {periodLabel(lesson, periods) !== null && (
                           <span className="period">{periodLabel(lesson, periods)}</span>
