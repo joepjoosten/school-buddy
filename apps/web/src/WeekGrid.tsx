@@ -88,7 +88,7 @@ const HomeworkCard = ({
         onChange={() => onToggle(item)}
         title={item.done ? "weer openzetten" : "afvinken"}
       />
-      <span className="subject" title={item.subject}>
+      <span className="subject" title={`${item.subjectName} (${item.subject})`}>
         {item.kind === "reminder" && <span title="meenemen — geen leertijd nodig">🎒 </span>}
         {item.subjectName}
       </span>

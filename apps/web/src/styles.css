@@ -107,11 +107,15 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 
 /* --- week calendar ------------------------------------------------------ */
 .cal { background: #fff; border: 1px solid #e3e8f2; border-radius: 12px; overflow: hidden; }
-.cal-head, .cal-body, .cal-allday, .hw-grid { display: grid; grid-template-columns: 56px repeat(5, 1fr); }
+/* minmax(0, 1fr): plain 1fr never shrinks below its content, so a long course
+   name would widen its column and knock the two grids out of alignment */
+.cal-head, .cal-body, .cal-allday, .hw-grid {
+  display: grid; grid-template-columns: 56px repeat(5, minmax(0, 1fr));
+}
 .cal-head { border-bottom: 1px solid #e3e8f2; }
 .cal-day-head {
   padding: 0.5rem 0.4rem; font-size: 0.9rem; font-weight: 600; text-transform: capitalize;
-  border-left: 1px solid #d5dbe8; text-align: center;
+  border-left: 1px solid #d5dbe8; text-align: center; min-width: 0;
 }
 .cal-day-head small { color: #8a94ab; font-weight: 400; }
 .cal-day-head.today { color: #4f46e5; background: #dfe4ff; }
@@ -127,7 +131,7 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   color: #6366f1; line-height: 1; padding-top: 2px;
 }
 .cal-day {
-  position: relative; border-left: 1px solid #d5dbe8;
+  position: relative; border-left: 1px solid #d5dbe8; min-width: 0;
   background-image: linear-gradient(to bottom, #cdd4e3 0, #cdd4e3 1px, transparent 1px);
 }
 .cal-day.today { background-color: #e8ecff; }
@@ -202,18 +206,18 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
   font-size: 0.7rem; color: #b45309; font-weight: 700; text-transform: uppercase;
   writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; padding: 0.5rem 0;
 }
-.hw-day { border-left: 1px solid #d5dbe8; padding: 0.4rem; min-height: 3rem; }
+.hw-day { border-left: 1px solid #d5dbe8; padding: 0.4rem; min-height: 3rem; min-width: 0; }
 .hw-day.today { background: #e8ecff; }
 .hw-day .empty { color: #c5cbd8; font-size: 0.8rem; margin: 0.2rem 0; text-align: center; }
 .homework {
   display: block; background: #ffedd5; border: 1px solid #fdba74; border-radius: 8px;
   padding: 0.35rem 0.45rem; margin-bottom: 0.35rem; font-size: 0.78rem;
 }
-.homework .hw-head { display: flex; align-items: center; gap: 0.3rem; }
+.homework .hw-head { display: flex; align-items: center; gap: 0.3rem; min-width: 0; }
 .homework .hw-head input[type="checkbox"] { margin: 0; flex: none; }
 .homework .subject {
   font-weight: 700; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
 .homework .desc {
   margin: 0.25rem 0 0; width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.35;
