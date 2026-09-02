@@ -6,6 +6,19 @@ body {
   color: #1c2333;
 }
 .app { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+/* One focus ring for every interactive element, only for keyboard users.
+   :focus-visible keeps it off mouse clicks while staying visible for tabbing. */
+:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* inside clipped containers an offset ring would be cut off */
+.cal-lesson:focus-visible, .plan-item:focus-visible, .homework:focus-visible {
+  outline-offset: -2px;
+}
+input[type="checkbox"]:focus-visible { outline-offset: 1px; }
 header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 header h1 { font-size: 1.4rem; margin: 0.5rem 0; }
 header nav { display: flex; gap: 0.4rem; }
@@ -392,4 +405,4 @@ table.changes tbody tr:hover { background: #f8f9fe; }
 .panel-plan .duration { background: #ede9fe; color: #5b21b6; border-radius: 999px; padding: 0 0.4rem; font-weight: 600; font-size: 0.7rem; white-space: nowrap; }
 .cal-lesson { cursor: pointer; }
 .cal-lesson:hover { filter: brightness(0.97); }
-.cal-lesson:focus-visible { outline: 2px solid #4f46e5; outline-offset: 1px; }
+.cal-lesson:focus-visible { outline-offset: -2px; }

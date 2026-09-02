@@ -1,6 +1,6 @@
 import type { HomeworkItem, Lesson, PlanItem, Period } from "@school-buddy/shared"
 import { localDay, localTime, stripSubjectPrefix } from "@school-buddy/shared"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { fetchPlanForHomework, runEffect } from "./api.ts"
 
 const dutchDate = (day: string): string =>
@@ -36,6 +36,12 @@ export const LessonPanel = ({
   onClose: () => void
 }) => {
   const [plans, setPlans] = useState<Record<string, ReadonlyArray<PlanItem>>>({})
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  // opening with the keyboard should land the focus ring inside the panel
+  useEffect(() => {
+    closeRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,7 +81,15 @@ export const LessonPanel = ({
               {period !== null && <> · {period}</>}
             </p>
           </div>
-          <button type="button" className="panel-close" onClick={onClose} title="Sluiten">✕</button>
+          <button
+            ref={closeRef}
+            type="button"
+            className="panel-close"
+            onClick={onClose}
+            title="Sluiten"
+          >
+            ✕
+          </button>
         </header>
 
         <dl className="panel-facts">
