@@ -155,7 +155,6 @@ main.rooster { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1
 .cal-head, .cal-body, .cal-allday, .hw-grid {
   display: grid; grid-template-columns: 56px repeat(5, minmax(0, 1fr));
 }
-.cal-head { border-bottom: 1px solid #e3e8f2; }
 .cal-day-head {
   padding: 0.5rem 0.4rem; font-size: 0.9rem; font-weight: 600; text-transform: capitalize;
   border-left: 1px solid #d5dbe8; text-align: center; min-width: 0;
