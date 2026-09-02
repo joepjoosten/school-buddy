@@ -111,13 +111,19 @@ export const LessonPanel = ({
           {lesson.cancelled && <div><dt>status</dt><dd>vervallen</dd></div>}
         </dl>
 
-        <h3>Huiswerk</h3>
+        <h3>Huiswerk & lesstof</h3>
         {homework.length === 0 && <p className="panel-empty">Geen huiswerk voor deze les.</p>}
         {homework.map((h) => (
-          <div key={h.id} className={`panel-hw${h.type === "toets" ? " toets" : ""}`}>
+          <div
+            key={h.id}
+            className={`panel-hw${h.type === "toets" ? " toets" : ""}${
+              h.kind === "info" ? " info" : ""
+            }`}
+          >
             <div className="panel-hw-head">
               <span className="subject">{h.subjectName}</span>
               {h.type === "toets" && <span className="toets-badge">Toets</span>}
+              {h.kind === "info" && <span className="lesstof-badge">Lesstof</span>}
               {h.done && <span className="panel-done">✓ afgerond</span>}
             </div>
             {h.title !== null && <p className="panel-hw-title">{h.title}</p>}
@@ -126,8 +132,8 @@ export const LessonPanel = ({
               voor {dutchDate(h.dueDate)} · {h.source === "somtoday" ? "uit Somtoday" : "zelf ingevoerd"}
             </p>
 
-            <h4>Planning</h4>
-            {(plans[h.id] ?? []).length === 0
+            {h.kind !== "info" && <h4>Planning</h4>}
+            {h.kind === "info" ? null : (plans[h.id] ?? []).length === 0
               ? <p className="panel-empty">Nog geen sessies ingepland.</p>
               : (
                 <ul className="panel-plan">

@@ -196,6 +196,15 @@ const migrations = [
   `alter table homework add column hw_type text not null default 'overig'`,
   `alter table homework add column subject_name text`,
   `alter table homework add column title text`,
+  // LESSTOF is lesson material, not an assignment: classify it as info and
+  // drop sessions an earlier version planned for it
+  `delete from plan_items where homework_id in
+     (select id from homework where hw_type = 'lesstof' and kind in ('unknown', 'task'))`,
+  `insert into homework_planning (homework_id, status, at)
+     select id, 'skipped', datetime('now') from homework
+     where hw_type = 'lesstof' and kind in ('unknown', 'task')
+     on conflict(homework_id) do update set status = 'skipped'`,
+  `update homework set kind = 'info' where hw_type = 'lesstof' and kind in ('unknown', 'task')`,
   `create table if not exists plan_items (
     id text primary key,
     homework_id text not null,

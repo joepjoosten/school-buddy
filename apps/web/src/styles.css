@@ -425,6 +425,11 @@ table.changes tbody tr:hover { background: #f8f9fe; }
   padding: 0.5rem 0.6rem; margin-bottom: 0.6rem;
 }
 .panel-hw.toets { background: #fee2e2; border-color: #fca5a5; }
+.panel-hw.info { background: #f1f5f9; border-color: #cbd5e1; }
+.lesstof-badge {
+  background: #64748b; color: #fff; border-radius: 999px; padding: 0 0.4rem;
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+}
 .panel-hw-head { display: flex; align-items: center; gap: 0.4rem; }
 .panel-hw-head .subject { font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
 .panel-done { margin-left: auto; font-size: 0.72rem; color: #15803d; font-weight: 600; }

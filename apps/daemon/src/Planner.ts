@@ -98,8 +98,13 @@ export const classifyNewHomework: Effect.Effect<number, never, Store | Ai> = Eff
   const items = yield* store.unclassifiedHomework
   let classified = 0
   for (const item of items) {
-    const viaAi = yield* ai.classifyHomework(item)
-    const kind = viaAi === "unknown" ? classifyByRules(item) : viaAi
+    // Somtoday already says what this is: LESSTOF is lesson material, never
+    // an assignment, so it needs no model call
+    const kind = item.type === "lesstof"
+      ? ("info" as const)
+      : yield* ai.classifyHomework(item).pipe(
+        Effect.map((viaAi) => (viaAi === "unknown" ? classifyByRules(item) : viaAi))
+      )
     yield* store.setHomeworkKind(item.id, kind)
     if (kind !== "task") yield* store.setPlanningStatus(item.id, "skipped")
     classified++

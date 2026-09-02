@@ -309,7 +309,8 @@ export const WeekGrid = ({
       <div className="hw-grid">
         <div className="cal-gutter-head hw-label">huiswerk</div>
         {days.map((d) => {
-          const items = week.homework.filter((h) => h.dueDate === d.date)
+          // lesson material ("info") belongs to the lesson, not the homework row
+          const items = week.homework.filter((h) => h.dueDate === d.date && h.kind !== "info")
           const vacation = vacationOn(d.date)
           return (
             <div
