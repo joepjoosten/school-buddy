@@ -17,6 +17,9 @@ import { VERSION } from "./version.ts"
  */
 
 const AUTH_FAILS_KEY = "somtoday.authFails"
+const REAUTH_ASKED_KEY = "somtoday.reauthAskedAt"
+/** once the student has been told, stay quiet for a day unless it starts working */
+const REAUTH_COOLDOWN_MS = 24 * 3600_000
 
 /** Tell the student about roster changes that hit the next ~2 days. */
 const notifyRosterChanges = Effect.gen(function* () {
@@ -41,7 +44,9 @@ const syncJob = Effect.gen(function* () {
       Effect.log(
         `somtoday sync ok: ${r.lessons} lessen, ${r.homework} huiswerk, ${r.changes} wijzigingen`
       ).pipe(
+        // it works again: forget the failures and allow a future warning
         Effect.andThen(store.setMeta(AUTH_FAILS_KEY, "0")),
+        Effect.andThen(store.setMeta(REAUTH_ASKED_KEY, "")),
         Effect.andThen(notifyRosterChanges),
         Effect.andThen(
           dedupHomework.pipe(
@@ -60,12 +65,22 @@ const syncJob = Effect.gen(function* () {
         const fails = Number((yield* store.getMeta(AUTH_FAILS_KEY)) ?? "0") + 1
         yield* store.setMeta(AUTH_FAILS_KEY, String(fails))
         if (fails < 2) return
+        // Ask once, not on every failed sync: a dismissed prompt used to let
+        // the next failure create a new one, which is a popup every 30 minutes
+        // for as long as the login is broken.
         const pending = yield* store.pendingPrompts
         if (pending.some((p) => p.kind === "reauth")) return
+        const askedAt = yield* store.getMeta(REAUTH_ASKED_KEY)
+        if (
+          askedAt !== null && askedAt !== "" &&
+          Date.now() - Date.parse(askedAt) < REAUTH_COOLDOWN_MS
+        ) return
         yield* store.createPrompt({
           kind: "reauth",
-          text: "Ik kan niet meer bij Somtoday. Vraag papa om opnieuw in te loggen."
+          text: "Ik kan niet meer bij Somtoday. Vraag papa om opnieuw in te loggen " +
+            "(⚙️ Instellingen → Somtoday)."
         })
+        yield* store.setMeta(REAUTH_ASKED_KEY, new Date().toISOString())
       })
     )
   )
